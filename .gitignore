@@ -1,0 +1,22 @@
+# Build
+build/
+build-*/
+cmake-build-*/
+docs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Compiled
+*.o
+*.a
+*.so
+*.dylib
+
+# CMake generated
+CMakeUserPresets.json
