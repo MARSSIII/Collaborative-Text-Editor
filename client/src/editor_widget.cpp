@@ -49,7 +49,6 @@ void EditorWidget::applyRemoteOperation(const collab::Operation& op) {
 
 void EditorWidget::onContentsChange(int position, int charsRemoved, int charsAdded) {
     if (applying_remote_) {
-        // Keep the shadow in sync even for self-initiated programmatic edits.
         last_known_text_ = toPlainText();
         return;
     }

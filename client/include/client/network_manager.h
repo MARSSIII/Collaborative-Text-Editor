@@ -14,8 +14,6 @@ class QThread;
 
 namespace collab_client {
 
-// Owns its own QThread. Public signals/slots are invoked via queued connections
-// — callers (GUI code) never touch the QTcpSocket directly.
 class NetworkManager : public QObject {
     Q_OBJECT
 
@@ -26,11 +24,8 @@ public:
     NetworkManager(const NetworkManager&) = delete;
     NetworkManager& operator=(const NetworkManager&) = delete;
 
-    // Starts the internal QThread. Must be called before issuing any connect/send.
     void start();
 
-    // Populated by ConnectionDialog on successful auth. Safe to read from any
-    // thread (GUI/Network/OTController).
     uint32_t userId() const noexcept { return user_id_.load(std::memory_order_acquire); }
     QString username() const;
     void setIdentity(uint32_t userId, const QString& username);
@@ -42,8 +37,6 @@ signals:
     void errorOccurred(QString message);
 
 public slots:
-    // All marshalled into thread_ via Qt::QueuedConnection. Safe to invoke
-    // from the GUI thread.
     void connectToHost(QString host, quint16 port);
     void sendFrame(QByteArray payload);
     void disconnectFromHost();

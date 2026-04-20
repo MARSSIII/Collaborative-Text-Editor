@@ -8,12 +8,15 @@
 #include <QDebug>
 #include <QDialog>
 
+#include <memory>
+
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
     QCoreApplication::setOrganizationName("collab");
     QCoreApplication::setApplicationName("collab-client");
 
-    auto* nm = new collab_client::NetworkManager(&app);
+    auto nm_holder = std::make_unique<collab_client::NetworkManager>();
+    auto* nm = nm_holder.get();
     nm->start();
 
     collab_client::ConnectionDialog dialog(nm);

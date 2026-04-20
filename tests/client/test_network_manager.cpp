@@ -112,7 +112,6 @@ private slots:
         auto* server_socket = server_->nextPendingConnection();
         QTRY_COMPARE_WITH_TIMEOUT(connected_spy.count(), 1, 2000);
 
-        // 16 MiB + 1 byte — exceeds MAX_PAYLOAD_SIZE.
         server_socket->write(oversized_frame_header(server::MAX_PAYLOAD_SIZE + 1));
         server_socket->flush();
 

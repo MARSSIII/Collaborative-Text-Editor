@@ -109,7 +109,7 @@ void DocumentListWindow::onDeleteClicked() {
 }
 
 void DocumentListWindow::requestJoin(uint32_t docId) {
-    if (pending_join_doc_id_ != 0) return; // already joining
+    if (pending_join_doc_id_ != 0) return;
     pending_join_doc_id_ = docId;
     status_->setText(tr("Opening document #%1…").arg(docId));
     QMetaObject::invokeMethod(nm_, "sendFrame", Qt::QueuedConnection,
@@ -132,7 +132,6 @@ void DocumentListWindow::onMessageReceived(QByteArray payload) {
             refresh();
             break;
         }
-        // Refresh the list, then auto-join the freshly created doc.
         refresh();
         requestJoin(msg->docId);
         break;
@@ -141,7 +140,7 @@ void DocumentListWindow::onMessageReceived(QByteArray payload) {
         auto msg = parse_doc_join_response(payload);
         if (!msg) break;
         if (msg->docId != pending_join_doc_id_ && pending_join_doc_id_ != 0) {
-            break; // not the one we asked about
+            break;
         }
         pending_join_doc_id_ = 0;
         if (!msg->success) {

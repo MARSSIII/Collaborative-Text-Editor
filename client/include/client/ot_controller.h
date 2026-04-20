@@ -15,9 +15,8 @@ namespace collab_client {
 class NetworkManager;
 class LocalDocument;
 
-// Phase 4 stub: only the `Synchronized` state. The full three-state machine
-// (Synchronized / AwaitingAck / AwaitingAckWithBuffer) arrives in Phase 5.
-// Lives in the GUI thread (plan §2E).
+// TODO(phase-5): replace Synchronized-only stub with the full
+// Synchronized / AwaitingAck / AwaitingAckWithBuffer state machine.
 class OTController : public QObject {
     Q_OBJECT
 

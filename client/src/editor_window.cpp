@@ -70,8 +70,6 @@ void EditorWindow::onCursorPositionChanged() {
 }
 
 void EditorWindow::onNetworkMessage(QByteArray payload) {
-    // Let the OTController peek at every message — it will pick up ack /
-    // broadcast / error and ignore the rest.
     ot_->onNetworkMessage(payload);
 }
 

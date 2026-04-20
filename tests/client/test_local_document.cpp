@@ -37,9 +37,6 @@ TEST(LocalDocument, Reset) {
 }
 
 TEST(LocalDocument, ConcurrentReadersDuringWriter) {
-    // Writer mutates content; many concurrent readers must never observe
-    // torn state. Each snapshot either starts with "A" or with "B" — never
-    // a mix.
     LocalDocument doc(std::string(1000, 'A'), 0);
 
     std::atomic<bool> stop{false};
@@ -50,8 +47,6 @@ TEST(LocalDocument, ConcurrentReadersDuringWriter) {
             while (!stop.load(std::memory_order_relaxed)) {
                 auto snap = doc.snapshot();
                 ASSERT_FALSE(snap.empty());
-                // All chars must be the same letter — otherwise writer was
-                // visible mid-update.
                 const char first = snap[0];
                 for (char c : snap) ASSERT_EQ(c, first);
                 reads.fetch_add(1, std::memory_order_relaxed);
@@ -60,7 +55,6 @@ TEST(LocalDocument, ConcurrentReadersDuringWriter) {
     }
 
     for (int i = 0; i < 200; ++i) {
-        // Atomic swap: delete everything, then reinsert a block of new letter.
         const char letter = (i % 2) ? 'B' : 'A';
         doc.reset(std::string(1000, letter), static_cast<uint32_t>(i));
     }

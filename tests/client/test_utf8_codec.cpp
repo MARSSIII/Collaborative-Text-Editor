@@ -14,7 +14,6 @@ TEST(Utf8Codec, AsciiOffsetsMatch) {
 }
 
 TEST(Utf8Codec, CyrillicEachCharIsTwoBytes) {
-    // "Привет" — 6 Cyrillic letters, each 1 QChar (UTF-16) / 2 bytes (UTF-8).
     QString s = QString::fromUtf8("Привет");
     EXPECT_EQ(s.size(), 6);
     EXPECT_EQ(utf16_to_utf8_offset(s, 0), 0u);
@@ -32,22 +31,18 @@ TEST(Utf8Codec, CyrillicEachCharIsTwoBytes) {
 
 TEST(Utf8Codec, MixedAsciiAndCyrillic) {
     QString s = QString::fromUtf8("Hi, Привет!");
-    // H i ,   П р и в е т !
-    // positions (UTF-16): 0 1 2 3 4 5 6 7 8 9 10
-    // UTF-8 bytes:        1 1 1 1 2 2 2 2 2 2 1
-    EXPECT_EQ(utf16_to_utf8_offset(s, 4), 4u);   // after "Hi, "
-    EXPECT_EQ(utf16_to_utf8_offset(s, 10), 16u); // before '!'
-    EXPECT_EQ(utf16_to_utf8_offset(s, 11), 17u); // after '!'
+    EXPECT_EQ(utf16_to_utf8_offset(s, 4), 4u);
+    EXPECT_EQ(utf16_to_utf8_offset(s, 10), 16u);
+    EXPECT_EQ(utf16_to_utf8_offset(s, 11), 17u);
 }
 
 TEST(Utf8Codec, EmojiSurrogatePair) {
-    // U+1F600 (grinning face) = 4 UTF-8 bytes, 2 UTF-16 code units.
     QString s = QString::fromUtf8("a😀b");
     EXPECT_EQ(s.size(), 4);
     EXPECT_EQ(utf16_to_utf8_offset(s, 0), 0u);
-    EXPECT_EQ(utf16_to_utf8_offset(s, 1), 1u);       // after 'a'
-    EXPECT_EQ(utf16_to_utf8_offset(s, 3), 5u);       // after emoji
-    EXPECT_EQ(utf16_to_utf8_offset(s, 4), 6u);       // after 'b'
+    EXPECT_EQ(utf16_to_utf8_offset(s, 1), 1u);
+    EXPECT_EQ(utf16_to_utf8_offset(s, 3), 5u);
+    EXPECT_EQ(utf16_to_utf8_offset(s, 4), 6u);
 
     auto utf8 = s.toUtf8();
     EXPECT_EQ(utf8_to_utf16_offset(utf8, 1), 1);

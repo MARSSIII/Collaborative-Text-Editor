@@ -10,25 +10,17 @@
 
 namespace collab_client {
 
-// Wraps QPlainTextEdit, converts its UTF-16 contentsChange deltas into
-// UTF-8 Operations, and re-applies remote operations without triggering
-// the feedback loop.
 class EditorWidget : public QPlainTextEdit {
     Q_OBJECT
 
 public:
     explicit EditorWidget(QWidget* parent = nullptr);
 
-    // Call once, right after construction, to seed the initial document state
-    // received in doc_join_response. Suppresses contentsChange emission.
     void resetContent(const QString& content);
 
-    // Identity for Operation::userId.
     void setIdentity(uint32_t user_id, uint32_t revision);
     void setRevision(uint32_t revision) { current_revision_ = revision; }
 
-    // Applied under the applying_remote_ guard — no localOperationsGenerated
-    // will fire for the resulting contentsChange.
     void applyRemoteOperation(const collab::Operation& op);
 
 signals:
@@ -41,7 +33,7 @@ private:
     uint32_t user_id_ = 0;
     uint32_t current_revision_ = 0;
     bool applying_remote_ = false;
-    QString last_known_text_;  // UTF-16 shadow, kept in sync after every change
+    QString last_known_text_;
 };
 
 } // namespace collab_client

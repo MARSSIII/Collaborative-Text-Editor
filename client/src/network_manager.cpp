@@ -36,6 +36,7 @@ NetworkManager::~NetworkManager() {
 }
 
 void NetworkManager::start() {
+    setParent(nullptr);
     moveToThread(thread_);
     thread_->start();
 }
@@ -49,9 +50,7 @@ void NetworkManager::ensureSocket() {
             this, &NetworkManager::onSocketDisconnected);
     connect(socket_, &QTcpSocket::readyRead,
             this, &NetworkManager::onReadyRead);
-    connect(socket_,
-            static_cast<void (QAbstractSocket::*)(QAbstractSocket::SocketError)>(
-                &QAbstractSocket::error),
+    connect(socket_, &QAbstractSocket::errorOccurred,
             this, &NetworkManager::onSocketError);
 }
 
@@ -98,7 +97,6 @@ void NetworkManager::onReadyRead() {
     if (!socket_) return;
     rx_buffer_.append(socket_->readAll());
 
-    // A single readyRead may carry multiple frames — drain them all.
     while (rx_buffer_.size() >= 4) {
         auto len_opt = server::decode_frame_header(
             reinterpret_cast<const uint8_t*>(rx_buffer_.constData()));
@@ -109,7 +107,7 @@ void NetworkManager::onReadyRead() {
         }
         const auto payload_len = static_cast<int>(*len_opt);
         if (rx_buffer_.size() < 4 + payload_len) {
-            return; // wait for the rest of the frame
+            return;
         }
         QByteArray payload = rx_buffer_.mid(4, payload_len);
         rx_buffer_.remove(0, 4 + payload_len);

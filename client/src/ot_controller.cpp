@@ -35,8 +35,7 @@ OTController::OTController(NetworkManager* nm,
 void OTController::onLocalOperations(std::vector<collab::Operation> ops) {
     if (ops.empty()) return;
 
-    // Phase 4: optimistic — apply straight to LocalDocument, send to server.
-    // Phase 5 will route through the state machine instead.
+    // TODO(phase-5): route through Synchronized/AwaitingAck/AwaitingAckWithBuffer state machine.
     for (const auto& op : ops) {
         if (!op.is_noop()) doc_->apply(op);
     }
@@ -91,8 +90,7 @@ void OTController::handleAck(const server::OperationAckMsg& msg) {
 }
 
 void OTController::handleBroadcast(const server::OperationBroadcastMsg& msg) {
-    // Phase 4 stub: silently drop broadcasts from other users. Phase 5 will
-    // feed them through the full OT state machine.
+    // TODO(phase-5): transform against pending_op_ and buffer_, then apply.
     (void)msg;
 }
 

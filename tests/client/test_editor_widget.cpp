@@ -61,11 +61,9 @@ private slots:
     void cyrillicInsertReportsUtf8ByteOffset() {
         EditorWidget w;
         w.setIdentity(1, 0);
-        // "Пр" is 2 QChars (UTF-16) and 4 bytes (UTF-8).
         w.resetContent(QString::fromUtf8("Пр"));
 
         QSignalSpy spy(&w, &EditorWidget::localOperationsGenerated);
-        // Position cursor at end (UTF-16 index 2) and type ASCII 'X'.
         auto c = w.textCursor();
         c.movePosition(QTextCursor::End);
         w.setTextCursor(c);
@@ -75,7 +73,6 @@ private slots:
         auto ops = spy.first().at(0).value<std::vector<collab::Operation>>();
         QCOMPARE(static_cast<int>(ops.size()), 1);
         QCOMPARE(ops[0].type, collab::Operation::Type::Insert);
-        // UTF-8 offset must be 4 (two Cyrillic letters), not 2 (UTF-16 units).
         QCOMPARE(ops[0].position, 4u);
         QCOMPARE(ops[0].text, std::string("X"));
     }
@@ -87,7 +84,6 @@ private slots:
 
         QSignalSpy spy(&w, &EditorWidget::localOperationsGenerated);
 
-        // Select "bcd" (positions 1..4) and type "X".
         auto c = w.textCursor();
         c.setPosition(1);
         c.setPosition(4, QTextCursor::KeepAnchor);

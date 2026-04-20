@@ -8,10 +8,6 @@
 
 namespace collab_client {
 
-// Stores the authoritative UTF-8 snapshot that the client considers current.
-// GUI-thread apply()s are serialized by QTextDocument events; LocalAutosave
-// (Phase 7) will read via shared_lock. Kept thread-safe from day one to avoid
-// retrofitting later.
 class LocalDocument {
 public:
     LocalDocument() = default;

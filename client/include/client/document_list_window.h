@@ -41,8 +41,6 @@ private:
     QPushButton* refresh_btn_;
     QLabel* status_;
 
-    // Track the docId being joined — so if the user clicks Open twice fast,
-    // only the first join_response dispatches and the second is ignored.
     uint32_t pending_join_doc_id_ = 0;
 };
 

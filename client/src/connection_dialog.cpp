@@ -107,7 +107,7 @@ void ConnectionDialog::onMessageReceived(QByteArray payload) {
 
     auto env = parse_envelope(payload);
     if (env.type != server::MessageType::AuthResponse) {
-        return; // not ours — the next screen will pick it up
+        return;
     }
 
     auto auth = parse_auth_response(payload);
