@@ -71,7 +71,8 @@ int main(int argc, char* argv[]) {
         config.log_level == "debug" ? server::LogLevel::Debug :
         config.log_level == "warn"  ? server::LogLevel::Warn :
         config.log_level == "error" ? server::LogLevel::Error :
-                                      server::LogLevel::Info);
+                                      server::LogLevel::Info,
+        config.log_console);
 
     logger.info("Starting server...");
     logger.info(std::format("Port: {}, Thread pool: {}, Data dir: {}",

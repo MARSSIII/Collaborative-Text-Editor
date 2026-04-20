@@ -48,6 +48,7 @@ ServerConfig load_config(const std::string& path) {
     get("data_dir", config.data_dir);
     get("shutdown_timeout_sec", config.shutdown_timeout_sec);
     get("log_level", config.log_level);
+    get("log_console", config.log_console);
 
     return config;
 }

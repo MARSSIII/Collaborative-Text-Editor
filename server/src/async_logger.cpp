@@ -6,9 +6,10 @@
 
 namespace server {
 
-AsyncLogger::AsyncLogger(const std::string& file_path, LogLevel min_level)
+AsyncLogger::AsyncLogger(const std::string& file_path, LogLevel min_level, bool console)
     : file_(file_path, std::ios::app)
-    , min_level_(min_level) {
+    , min_level_(min_level)
+    , console_(console) {
     if (!file_.is_open()) {
         std::cerr << "Failed to open log file: " << file_path << "\n";
     }
@@ -38,7 +39,7 @@ void AsyncLogger::log(LogLevel level, const std::string& message) {
         static_cast<int>(ms.count()),
         level_str(level), message);
 
-    queue_.enqueue(std::move(entry));
+    queue_.enqueue({level, std::move(entry)});
 }
 
 void AsyncLogger::info(const std::string& message) { log(LogLevel::Info, message); }
@@ -54,22 +55,39 @@ void AsyncLogger::shutdown() {
 }
 
 void AsyncLogger::writer_loop(std::stop_token stop) {
+    auto emit = [this](const std::pair<LogLevel, std::string>& item) {
+        file_ << item.second << "\n";
+        if (!console_) return;
+        auto& out = (item.first >= LogLevel::Warn) ? std::cerr : std::cout;
+        out << item.second << "\n";
+    };
+
     while (!stop.stop_requested()) {
         bool wrote = false;
         while (auto entry = queue_.try_dequeue()) {
-            file_ << *entry << "\n";
+            emit(*entry);
             wrote = true;
         }
 
-        if (wrote) file_.flush();
+        if (wrote) {
+            file_.flush();
+            if (console_) {
+                std::cout.flush();
+                std::cerr.flush();
+            }
+        }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 
     while (auto entry = queue_.try_dequeue()) {
-        file_ << *entry << "\n";
+        emit(*entry);
     }
     file_.flush();
+    if (console_) {
+        std::cout.flush();
+        std::cerr.flush();
+    }
 }
 
 std::string AsyncLogger::level_str(LogLevel level) {

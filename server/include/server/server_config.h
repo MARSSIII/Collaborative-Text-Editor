@@ -16,6 +16,7 @@ struct ServerConfig {
     std::string data_dir{"./data"};
     uint32_t shutdown_timeout_sec{10};
     std::string log_level{"info"};
+    bool log_console{true};
 
     size_t effective_thread_pool_size() const {
         if (thread_pool_size > 0) return thread_pool_size;

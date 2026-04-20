@@ -5,6 +5,7 @@
 #include <fstream>
 #include <string>
 #include <thread>
+#include <utility>
 
 namespace server {
 
@@ -13,7 +14,8 @@ enum class LogLevel { Debug, Info, Warn, Error };
 class AsyncLogger {
 public:
     explicit AsyncLogger(const std::string& file_path,
-                         LogLevel min_level = LogLevel::Info);
+                         LogLevel min_level = LogLevel::Info,
+                         bool console = true);
     ~AsyncLogger();
 
     AsyncLogger(const AsyncLogger&) = delete;
@@ -31,10 +33,11 @@ private:
     void writer_loop(std::stop_token stop);
     static std::string level_str(LogLevel level);
 
-    collab::MPSCQueue<std::string> queue_;
+    collab::MPSCQueue<std::pair<LogLevel, std::string>> queue_;
     std::jthread writer_thread_;
     std::ofstream file_;
     LogLevel min_level_;
+    bool console_;
 };
 
 } // namespace server
