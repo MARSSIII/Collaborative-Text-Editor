@@ -7,7 +7,6 @@
 #include <QListWidgetItem>
 #include <QPainter>
 #include <QPixmap>
-#include <QPushButton>
 #include <QVBoxLayout>
 
 namespace collab_client {
@@ -41,14 +40,8 @@ UserPanelWidget::UserPanelWidget(QWidget* parent) : QWidget(parent) {
     list_->setSelectionMode(QAbstractItemView::NoSelection);
     list_->setIconSize(QSize(18, 18));
 
-    share_btn_ = new QPushButton(tr("Share…"));
-    share_btn_->setObjectName("primary");
-    share_btn_->setToolTip(tr("Grant editor access to another user"));
-    connect(share_btn_, &QPushButton::clicked, this, &UserPanelWidget::shareRequested);
-
     layout->addWidget(header_);
     layout->addWidget(list_, 1);
-    layout->addWidget(share_btn_);
     setMinimumWidth(220);
 }
 

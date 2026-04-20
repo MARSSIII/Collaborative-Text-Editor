@@ -159,8 +159,6 @@ void EditorWindow::wireSignals() {
 
     connect(remote_cursors_.get(), &RemoteCursorsModel::cursorsChanged,
             this, &EditorWindow::onRemoteCursorsChanged);
-    connect(user_panel_, &UserPanelWidget::shareRequested,
-            this, &EditorWindow::onShareClicked);
 }
 
 void EditorWindow::closeEvent(QCloseEvent* event) {
