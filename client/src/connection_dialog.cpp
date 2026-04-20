@@ -1,5 +1,6 @@
 #include "client/connection_dialog.h"
 
+#include "client/logging.h"
 #include "client/network_manager.h"
 #include "client/protocol_codec.h"
 #include "collab_protocol/protocol.h"
@@ -80,6 +81,8 @@ void ConnectionDialog::startAuth(const QString& action) {
     setInputsEnabled(false);
     status_label_->setText(tr("Connecting to %1:%2…").arg(host()).arg(port()));
 
+    qCInfo(logAuth) << action << "requested for user=" << username()
+                    << "host=" << host() << "port=" << port();
     QMetaObject::invokeMethod(nm_, "connectToHost", Qt::QueuedConnection,
                               Q_ARG(QString, host()), Q_ARG(quint16, port()));
 }
@@ -116,6 +119,7 @@ void ConnectionDialog::onMessageReceived(QByteArray payload) {
         return;
     }
     if (!auth->success) {
+        qCWarning(logAuth) << "auth failed code=" << QString::fromStdString(auth->error);
         const auto code = QString::fromStdString(auth->error);
         const auto human = code == "invalid_credentials"
             ? tr("Invalid username or password.")
@@ -126,6 +130,7 @@ void ConnectionDialog::onMessageReceived(QByteArray payload) {
         return;
     }
 
+    qCInfo(logAuth) << "auth success user=" << username() << "userId=" << auth->userId;
     nm_->setIdentity(auth->userId, username());
 
     QSettings settings;

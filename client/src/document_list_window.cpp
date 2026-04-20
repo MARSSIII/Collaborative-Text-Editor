@@ -1,5 +1,6 @@
 #include "client/document_list_window.h"
 
+#include "client/logging.h"
 #include "client/network_manager.h"
 #include "client/protocol_codec.h"
 
@@ -68,8 +69,18 @@ DocumentListWindow::DocumentListWindow(NetworkManager* nm, QWidget* parent)
 
     connect(nm_, &NetworkManager::messageReceived,
             this, &DocumentListWindow::onMessageReceived);
+    connect(nm_, &NetworkManager::disconnected,
+            this, &DocumentListWindow::onDisconnected);
 
+    qCInfo(logDocs) << "document list opened for user=" << nm_->username();
     refresh();
+}
+
+void DocumentListWindow::onDisconnected(QString reason) {
+    qCWarning(logDocs) << "disconnected reason=" << reason;
+    QMessageBox::information(this, tr("Connection lost"),
+                             tr("Lost connection to server: %1").arg(reason));
+    close();
 }
 
 void DocumentListWindow::refresh() {
@@ -135,6 +146,7 @@ void DocumentListWindow::onShareClicked() {
 void DocumentListWindow::requestJoin(uint32_t docId) {
     if (pending_join_doc_id_ != 0) return;
     pending_join_doc_id_ = docId;
+    qCInfo(logDocs) << "joining doc=" << docId;
     status_->setText(tr("Opening document #%1…").arg(docId));
     QMetaObject::invokeMethod(nm_, "sendFrame", Qt::QueuedConnection,
                               Q_ARG(QByteArray, encode_doc_join_request(docId)));

@@ -1,6 +1,7 @@
 #include "client/ot_controller.h"
 
 #include "client/local_document.h"
+#include "client/logging.h"
 #include "client/network_manager.h"
 #include "client/protocol_codec.h"
 #include "collab/ot.h"
@@ -102,6 +103,8 @@ void OTController::onNetworkMessage(QByteArray payload) {
 }
 
 void OTController::handleAck(const server::OperationAckMsg& msg) {
+    qCDebug(logOt) << "ack doc=" << msg.docId << "rev=" << msg.revision
+                   << "buffer=" << buffer_.size();
     revision_ = msg.revision;
     doc_->set_revision(msg.revision);
     emit revisionChanged(msg.revision);
@@ -120,6 +123,9 @@ void OTController::handleAck(const server::OperationAckMsg& msg) {
 
 void OTController::handleBroadcast(const server::OperationBroadcastMsg& msg) {
     if (msg.userId == nm_->userId()) return;
+    qCDebug(logOt) << "remote ops from user=" << msg.userId
+                   << "rev=" << msg.revision
+                   << "count=" << msg.ops.size();
 
     for (const auto& entry : msg.ops) {
         auto server_op = from_entry(entry, msg.userId, msg.revision);
@@ -149,6 +155,8 @@ void OTController::handleBroadcast(const server::OperationBroadcastMsg& msg) {
 }
 
 void OTController::handleError(const server::ErrorMsg& msg) {
+    qCWarning(logOt) << "server error code=" << QString::fromStdString(msg.code)
+                     << "msg=" << QString::fromStdString(msg.message);
     if (msg.code == "revision_too_old") {
         emit fatalError(QStringLiteral("Document out of sync — reopen it."));
     }

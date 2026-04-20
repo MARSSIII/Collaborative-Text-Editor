@@ -124,3 +124,28 @@ TEST(ProtocolCodec, ParseUserJoinedAndLeft) {
     ASSERT_TRUE(parsed2.has_value());
     EXPECT_EQ(parsed2->userId, 9u);
 }
+
+TEST(ProtocolCodec, ParseServerShutdown) {
+    server::ServerShutdownMsg src{.message = "Maintenance at 03:00"};
+    auto p = to_frame_payload(server::serialize(src));
+    auto parsed = parse_server_shutdown(p);
+    ASSERT_TRUE(parsed.has_value());
+    EXPECT_EQ(parsed->message, "Maintenance at 03:00");
+}
+
+TEST(ProtocolCodec, ParseDocDeleted) {
+    server::DocDeletedMsg src{.docId = 42};
+    auto p = to_frame_payload(server::serialize(src));
+    auto parsed = parse_doc_deleted(p);
+    ASSERT_TRUE(parsed.has_value());
+    EXPECT_EQ(parsed->docId, 42u);
+}
+
+TEST(ProtocolCodec, ParseRoleChanged) {
+    server::RoleChangedMsg src{.docId = 5, .newRole = "viewer"};
+    auto p = to_frame_payload(server::serialize(src));
+    auto parsed = parse_role_changed(p);
+    ASSERT_TRUE(parsed.has_value());
+    EXPECT_EQ(parsed->docId, 5u);
+    EXPECT_EQ(parsed->newRole, "viewer");
+}

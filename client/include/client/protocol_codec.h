@@ -38,6 +38,9 @@ std::optional<server::DocDeleteResponseMsg> parse_doc_delete_response(const QByt
 std::optional<server::CursorBroadcastMsg> parse_cursor_broadcast(const QByteArray& payload);
 std::optional<server::UserJoinedMsg> parse_user_joined(const QByteArray& payload);
 std::optional<server::UserLeftMsg> parse_user_left(const QByteArray& payload);
+std::optional<server::ServerShutdownMsg> parse_server_shutdown(const QByteArray& payload);
+std::optional<server::DocDeletedMsg> parse_doc_deleted(const QByteArray& payload);
+std::optional<server::RoleChangedMsg> parse_role_changed(const QByteArray& payload);
 std::optional<server::ErrorMsg> parse_error(const QByteArray& payload);
 
 } // namespace collab_client

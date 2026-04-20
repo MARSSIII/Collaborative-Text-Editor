@@ -126,6 +126,18 @@ std::optional<server::UserLeftMsg> parse_user_left(const QByteArray& payload) {
     return parse_as<server::UserLeftMsg>(payload);
 }
 
+std::optional<server::ServerShutdownMsg> parse_server_shutdown(const QByteArray& payload) {
+    return parse_as<server::ServerShutdownMsg>(payload);
+}
+
+std::optional<server::DocDeletedMsg> parse_doc_deleted(const QByteArray& payload) {
+    return parse_as<server::DocDeletedMsg>(payload);
+}
+
+std::optional<server::RoleChangedMsg> parse_role_changed(const QByteArray& payload) {
+    return parse_as<server::RoleChangedMsg>(payload);
+}
+
 std::optional<server::ErrorMsg> parse_error(const QByteArray& payload) {
     return parse_as<server::ErrorMsg>(payload);
 }

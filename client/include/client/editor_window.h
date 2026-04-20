@@ -45,12 +45,17 @@ private slots:
     void onRemoteCursorsChanged();
     void onRemoteOperationApplied(const collab::Operation& op);
     void onShareClicked();
+    void onDisconnected(QString reason);
 
 private:
     void scheduleCursorBroadcast();
+    void applyRole(const QString& role);
+    void closeWithNotice(const QString& title, const QString& body);
 
     NetworkManager* nm_;
     uint32_t doc_id_;
+    QString role_;
+    bool closing_ = false;
 
     std::unique_ptr<LocalDocument> local_doc_;
     std::unique_ptr<RemoteCursorsModel> remote_cursors_;

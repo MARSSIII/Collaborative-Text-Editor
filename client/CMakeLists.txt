@@ -18,6 +18,8 @@ add_library(collab_client_lib STATIC
     src/status_bar_widget.cpp
     src/remote_cursors_model.cpp
     src/user_panel_widget.cpp
+    src/logging.cpp
+    include/client/logging.h
     include/client/network_manager.h
     include/client/connection_dialog.h
     include/client/document_list_window.h

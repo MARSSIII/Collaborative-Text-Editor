@@ -30,6 +30,7 @@ private slots:
     void onDeleteClicked();
     void onShareClicked();
     void onMessageReceived(QByteArray payload);
+    void onDisconnected(QString reason);
 
 private:
     void requestJoin(uint32_t docId);
