@@ -23,6 +23,27 @@ QByteArray encode_auth_request(const QString& action,
     return to_qbytes(server::serialize(msg));
 }
 
+QByteArray encode_doc_list_request() {
+    return to_qbytes(server::serialize(server::DocListRequestMsg{}));
+}
+
+QByteArray encode_doc_create_request(const QString& title) {
+    return to_qbytes(server::serialize(
+        server::DocCreateRequestMsg{.title = title.toStdString()}));
+}
+
+QByteArray encode_doc_join_request(uint32_t docId) {
+    return to_qbytes(server::serialize(server::DocJoinRequestMsg{.docId = docId}));
+}
+
+QByteArray encode_doc_leave_request(uint32_t docId) {
+    return to_qbytes(server::serialize(server::DocLeaveRequestMsg{.docId = docId}));
+}
+
+QByteArray encode_doc_delete_request(uint32_t docId) {
+    return to_qbytes(server::serialize(server::DocDeleteRequestMsg{.docId = docId}));
+}
+
 ParsedEnvelope parse_envelope(const QByteArray& payload) {
     try {
         auto j = nlohmann::json::parse(payload.constData(),
@@ -36,14 +57,43 @@ ParsedEnvelope parse_envelope(const QByteArray& payload) {
     }
 }
 
-std::optional<server::AuthResponseMsg> parse_auth_response(const QByteArray& payload) {
+namespace {
+
+template <typename T>
+std::optional<T> parse_as(const QByteArray& payload) {
     try {
         auto j = nlohmann::json::parse(payload.constData(),
                                        payload.constData() + payload.size());
-        return j.get<server::AuthResponseMsg>();
+        return j.get<T>();
     } catch (const nlohmann::json::exception&) {
         return std::nullopt;
     }
+}
+
+} // namespace
+
+std::optional<server::AuthResponseMsg> parse_auth_response(const QByteArray& payload) {
+    return parse_as<server::AuthResponseMsg>(payload);
+}
+
+std::optional<server::DocListResponseMsg> parse_doc_list_response(const QByteArray& payload) {
+    return parse_as<server::DocListResponseMsg>(payload);
+}
+
+std::optional<server::DocCreateResponseMsg> parse_doc_create_response(const QByteArray& payload) {
+    return parse_as<server::DocCreateResponseMsg>(payload);
+}
+
+std::optional<server::DocJoinResponseMsg> parse_doc_join_response(const QByteArray& payload) {
+    return parse_as<server::DocJoinResponseMsg>(payload);
+}
+
+std::optional<server::DocDeleteResponseMsg> parse_doc_delete_response(const QByteArray& payload) {
+    return parse_as<server::DocDeleteResponseMsg>(payload);
+}
+
+std::optional<server::ErrorMsg> parse_error(const QByteArray& payload) {
+    return parse_as<server::ErrorMsg>(payload);
 }
 
 } // namespace collab_client

@@ -132,6 +132,48 @@ void to_json(nlohmann::json& j, const AuthRequestMsg& m) {
          {"password", m.password}};
 }
 
+void to_json(nlohmann::json& j, const DocListRequestMsg&) {
+    j = {{"type", "doc_list_request"}};
+}
+
+void to_json(nlohmann::json& j, const DocCreateRequestMsg& m) {
+    j = {{"type", "doc_create_request"}, {"title", m.title}};
+}
+
+void to_json(nlohmann::json& j, const DocJoinRequestMsg& m) {
+    j = {{"type", "doc_join_request"}, {"docId", m.docId}};
+}
+
+void to_json(nlohmann::json& j, const DocLeaveRequestMsg& m) {
+    j = {{"type", "doc_leave_request"}, {"docId", m.docId}};
+}
+
+void to_json(nlohmann::json& j, const DocDeleteRequestMsg& m) {
+    j = {{"type", "doc_delete_request"}, {"docId", m.docId}};
+}
+
+void to_json(nlohmann::json& j, const DocShareRequestMsg& m) {
+    j = {{"type", "doc_share_request"},
+         {"docId", m.docId},
+         {"targetUsername", m.targetUsername},
+         {"role", m.role}};
+}
+
+void to_json(nlohmann::json& j, const OperationMsg& m) {
+    j = {{"type", "operation"},
+         {"docId", m.docId},
+         {"revision", m.revision},
+         {"ops", m.ops}};
+}
+
+void to_json(nlohmann::json& j, const CursorUpdateMsg& m) {
+    j = {{"type", "cursor_update"}, {"docId", m.docId}, {"position", m.position}};
+    j["selectionStart"] = m.selectionStart ? nlohmann::json(*m.selectionStart)
+                                           : nlohmann::json(nullptr);
+    j["selectionEnd"] = m.selectionEnd ? nlohmann::json(*m.selectionEnd)
+                                       : nlohmann::json(nullptr);
+}
+
 void from_json(const nlohmann::json& j, AuthResponseMsg& m) {
     j.at("success").get_to(m.success);
     if (m.success) {
@@ -139,6 +181,116 @@ void from_json(const nlohmann::json& j, AuthResponseMsg& m) {
     } else if (j.contains("error")) {
         j.at("error").get_to(m.error);
     }
+}
+
+void from_json(const nlohmann::json& j, DocListEntry& m) {
+    j.at("docId").get_to(m.docId);
+    j.at("title").get_to(m.title);
+    j.at("role").get_to(m.role);
+    j.at("onlineCount").get_to(m.onlineCount);
+}
+
+void from_json(const nlohmann::json& j, DocListResponseMsg& m) {
+    j.at("documents").get_to(m.documents);
+}
+
+void from_json(const nlohmann::json& j, DocCreateResponseMsg& m) {
+    j.at("success").get_to(m.success);
+    if (m.success) j.at("docId").get_to(m.docId);
+}
+
+void from_json(const nlohmann::json& j, UserInfo& m) {
+    j.at("userId").get_to(m.userId);
+    j.at("username").get_to(m.username);
+    j.at("color").get_to(m.color);
+}
+
+void from_json(const nlohmann::json& j, DocJoinResponseMsg& m) {
+    j.at("success").get_to(m.success);
+    if (m.success) {
+        j.at("docId").get_to(m.docId);
+        j.at("title").get_to(m.title);
+        j.at("content").get_to(m.content);
+        j.at("revision").get_to(m.revision);
+        j.at("role").get_to(m.role);
+        j.at("users").get_to(m.users);
+    } else if (j.contains("error")) {
+        j.at("error").get_to(m.error);
+    }
+}
+
+void from_json(const nlohmann::json& j, DocLeaveResponseMsg& m) {
+    j.at("success").get_to(m.success);
+}
+
+void from_json(const nlohmann::json& j, DocDeleteResponseMsg& m) {
+    j.at("success").get_to(m.success);
+}
+
+void from_json(const nlohmann::json& j, DocShareResponseMsg& m) {
+    j.at("success").get_to(m.success);
+}
+
+void from_json(const nlohmann::json& j, OperationAckMsg& m) {
+    j.at("docId").get_to(m.docId);
+    j.at("revision").get_to(m.revision);
+}
+
+void from_json(const nlohmann::json& j, OperationBroadcastMsg& m) {
+    j.at("docId").get_to(m.docId);
+    j.at("userId").get_to(m.userId);
+    j.at("username").get_to(m.username);
+    j.at("revision").get_to(m.revision);
+    j.at("ops").get_to(m.ops);
+}
+
+void from_json(const nlohmann::json& j, CursorInfo& m) {
+    j.at("userId").get_to(m.userId);
+    j.at("username").get_to(m.username);
+    j.at("color").get_to(m.color);
+    j.at("position").get_to(m.position);
+    if (j.contains("selectionStart") && !j["selectionStart"].is_null()) {
+        m.selectionStart = j["selectionStart"].get<uint32_t>();
+    }
+    if (j.contains("selectionEnd") && !j["selectionEnd"].is_null()) {
+        m.selectionEnd = j["selectionEnd"].get<uint32_t>();
+    }
+}
+
+void from_json(const nlohmann::json& j, CursorBroadcastMsg& m) {
+    j.at("docId").get_to(m.docId);
+    j.at("cursors").get_to(m.cursors);
+}
+
+void from_json(const nlohmann::json& j, UserJoinedMsg& m) {
+    j.at("docId").get_to(m.docId);
+    j.at("userId").get_to(m.userId);
+    j.at("username").get_to(m.username);
+    j.at("color").get_to(m.color);
+}
+
+void from_json(const nlohmann::json& j, UserLeftMsg& m) {
+    j.at("docId").get_to(m.docId);
+    j.at("userId").get_to(m.userId);
+    j.at("username").get_to(m.username);
+}
+
+void from_json(const nlohmann::json& j, RoleChangedMsg& m) {
+    j.at("docId").get_to(m.docId);
+    j.at("newRole").get_to(m.newRole);
+}
+
+void from_json(const nlohmann::json& j, DocDeletedMsg& m) {
+    j.at("docId").get_to(m.docId);
+}
+
+void from_json(const nlohmann::json& j, ServerShutdownMsg& m) {
+    j.at("message").get_to(m.message);
+}
+
+void from_json(const nlohmann::json& j, ErrorMsg& m) {
+    j.at("code").get_to(m.code);
+    j.at("message").get_to(m.message);
 }
 
 // ============================================================

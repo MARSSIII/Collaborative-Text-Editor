@@ -203,7 +203,34 @@ void from_json(const nlohmann::json& j, CursorUpdateMsg& m);
 // Client-side mirrors: the server defines from_json for C→S and to_json for S→C.
 // The client needs the reverse pair on the same types.
 void to_json(nlohmann::json& j, const AuthRequestMsg& m);
+void to_json(nlohmann::json& j, const DocListRequestMsg& m);
+void to_json(nlohmann::json& j, const DocCreateRequestMsg& m);
+void to_json(nlohmann::json& j, const DocJoinRequestMsg& m);
+void to_json(nlohmann::json& j, const DocLeaveRequestMsg& m);
+void to_json(nlohmann::json& j, const DocDeleteRequestMsg& m);
+void to_json(nlohmann::json& j, const DocShareRequestMsg& m);
+void to_json(nlohmann::json& j, const OperationMsg& m);
+void to_json(nlohmann::json& j, const CursorUpdateMsg& m);
+
 void from_json(const nlohmann::json& j, AuthResponseMsg& m);
+void from_json(const nlohmann::json& j, DocListEntry& m);
+void from_json(const nlohmann::json& j, DocListResponseMsg& m);
+void from_json(const nlohmann::json& j, DocCreateResponseMsg& m);
+void from_json(const nlohmann::json& j, UserInfo& m);
+void from_json(const nlohmann::json& j, DocJoinResponseMsg& m);
+void from_json(const nlohmann::json& j, DocLeaveResponseMsg& m);
+void from_json(const nlohmann::json& j, DocDeleteResponseMsg& m);
+void from_json(const nlohmann::json& j, DocShareResponseMsg& m);
+void from_json(const nlohmann::json& j, OperationAckMsg& m);
+void from_json(const nlohmann::json& j, OperationBroadcastMsg& m);
+void from_json(const nlohmann::json& j, CursorInfo& m);
+void from_json(const nlohmann::json& j, CursorBroadcastMsg& m);
+void from_json(const nlohmann::json& j, UserJoinedMsg& m);
+void from_json(const nlohmann::json& j, UserLeftMsg& m);
+void from_json(const nlohmann::json& j, RoleChangedMsg& m);
+void from_json(const nlohmann::json& j, DocDeletedMsg& m);
+void from_json(const nlohmann::json& j, ServerShutdownMsg& m);
+void from_json(const nlohmann::json& j, ErrorMsg& m);
 
 void to_json(nlohmann::json& j, const AuthResponseMsg& m);
 void to_json(nlohmann::json& j, const DocListEntry& m);

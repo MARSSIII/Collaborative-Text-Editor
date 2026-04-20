@@ -8,8 +8,10 @@ add_library(collab_client_lib STATIC
     src/network_manager.cpp
     src/protocol_codec.cpp
     src/connection_dialog.cpp
+    src/document_list_window.cpp
     include/client/network_manager.h
     include/client/connection_dialog.h
+    include/client/document_list_window.h
 )
 
 set_target_properties(collab_client_lib PROPERTIES
