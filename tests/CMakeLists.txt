@@ -31,3 +31,7 @@ if(TARGET server_lib)
     )
     gtest_discover_tests(server_integration_tests)
 endif()
+
+if(TARGET collab_client_lib)
+    add_subdirectory(client)
+endif()

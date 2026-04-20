@@ -56,4 +56,16 @@ else()
     message(STATUS "Server target SKIPPED (install Boost and nlohmann_json via vcpkg)")
 endif()
 
+# Qt5 client (Phase 4–6). Skipped silently if Qt5 isn't available.
+if(NOT DEFINED CMAKE_PREFIX_PATH AND EXISTS "/opt/homebrew/opt/qt@5")
+    list(APPEND CMAKE_PREFIX_PATH "/opt/homebrew/opt/qt@5")
+endif()
+find_package(Qt5 5.15 QUIET COMPONENTS Widgets Network Test)
+if(Qt5_FOUND)
+    add_subdirectory(client)
+    message(STATUS "Qt5 client target enabled (Qt ${Qt5_VERSION})")
+else()
+    message(STATUS "Qt5 client target SKIPPED (install qt@5 via Homebrew)")
+endif()
+
 add_subdirectory(tests)
