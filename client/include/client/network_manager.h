@@ -30,6 +30,10 @@ public:
     QString username() const;
     void setIdentity(uint32_t userId, const QString& username);
 
+    void send(QByteArray payload);
+    void requestConnect(const QString& host, quint16 port);
+    void requestDisconnect();
+
 signals:
     void connected();
     void disconnected(QString reason);

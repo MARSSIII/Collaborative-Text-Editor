@@ -12,7 +12,6 @@
 #include <QListWidget>
 #include <QListWidgetItem>
 #include <QMessageBox>
-#include <QMetaObject>
 #include <QPushButton>
 #include <QStatusBar>
 #include <QVBoxLayout>
@@ -22,7 +21,7 @@ namespace collab_client {
 
 namespace {
 
-QWidget* make_card(const server::DocListEntry& e) {
+QWidget* makeDocCard(const server::DocListEntry& e) {
     auto* card = new QFrame;
     card->setObjectName("docCard");
 
@@ -62,6 +61,13 @@ QWidget* make_card(const server::DocListEntry& e) {
     return card;
 }
 
+QString promptForText(QWidget* parent, const QString& title, const QString& label) {
+    bool ok = false;
+    const auto text = QInputDialog::getText(parent, title, label, QLineEdit::Normal,
+                                            QString(), &ok).trimmed();
+    return ok ? text : QString();
+}
+
 }
 
 DocumentListWindow::DocumentListWindow(NetworkManager* nm, QWidget* parent)
@@ -69,6 +75,14 @@ DocumentListWindow::DocumentListWindow(NetworkManager* nm, QWidget* parent)
     setWindowTitle(tr("Documents — %1").arg(nm_->username()));
     resize(720, 560);
 
+    buildUi();
+    wireSignals();
+
+    qCInfo(logDocs) << "document list opened for user=" << nm_->username();
+    refresh();
+}
+
+void DocumentListWindow::buildUi() {
     auto* central = new QWidget(this);
     setCentralWidget(central);
 
@@ -85,10 +99,11 @@ DocumentListWindow::DocumentListWindow(NetworkManager* nm, QWidget* parent)
     new_btn_ = new QPushButton(tr("New document"));
     new_btn_->setObjectName("primary");
     open_btn_ = new QPushButton(tr("Open"));
+    share_btn_ = new QPushButton(tr("Share"));
     delete_btn_ = new QPushButton(tr("Delete"));
     delete_btn_->setObjectName("danger");
-    share_btn_ = new QPushButton(tr("Share"));
     refresh_btn_ = new QPushButton(tr("Refresh"));
+
     status_ = new QLabel(tr("Loading…"));
     status_->setObjectName("muted");
 
@@ -110,7 +125,9 @@ DocumentListWindow::DocumentListWindow(NetworkManager* nm, QWidget* parent)
     root->addLayout(buttons);
     root->addWidget(list_, 1);
     root->addWidget(status_);
+}
 
+void DocumentListWindow::wireSignals() {
     connect(new_btn_, &QPushButton::clicked, this, &DocumentListWindow::onNewClicked);
     connect(open_btn_, &QPushButton::clicked, this, &DocumentListWindow::onOpenClicked);
     connect(delete_btn_, &QPushButton::clicked, this, &DocumentListWindow::onDeleteClicked);
@@ -123,9 +140,12 @@ DocumentListWindow::DocumentListWindow(NetworkManager* nm, QWidget* parent)
             this, &DocumentListWindow::onMessageReceived);
     connect(nm_, &NetworkManager::disconnected,
             this, &DocumentListWindow::onDisconnected);
+}
 
-    qCInfo(logDocs) << "document list opened for user=" << nm_->username();
-    refresh();
+std::optional<uint32_t> DocumentListWindow::selectedDocId() const {
+    auto* item = list_->currentItem();
+    if (!item) return std::nullopt;
+    return static_cast<uint32_t>(item->data(Qt::UserRole).toUInt());
 }
 
 void DocumentListWindow::onDisconnected(QString reason) {
@@ -137,62 +157,44 @@ void DocumentListWindow::onDisconnected(QString reason) {
 
 void DocumentListWindow::refresh() {
     status_->setText(tr("Refreshing…"));
-    QMetaObject::invokeMethod(nm_, "sendFrame", Qt::QueuedConnection,
-                              Q_ARG(QByteArray, encode_doc_list_request()));
+    nm_->send(encode_doc_list_request());
 }
 
 void DocumentListWindow::onNewClicked() {
-    bool ok = false;
-    auto title = QInputDialog::getText(this, tr("New document"),
-                                       tr("Title:"), QLineEdit::Normal,
-                                       QString(), &ok).trimmed();
-    if (!ok || title.isEmpty()) return;
-
+    const auto title = promptForText(this, tr("New document"), tr("Title:"));
+    if (title.isEmpty()) return;
     status_->setText(tr("Creating \"%1\"…").arg(title));
-    QMetaObject::invokeMethod(nm_, "sendFrame", Qt::QueuedConnection,
-                              Q_ARG(QByteArray, encode_doc_create_request(title)));
+    nm_->send(encode_doc_create_request(title));
 }
 
 void DocumentListWindow::onOpenClicked() {
-    auto* item = list_->currentItem();
-    if (!item) return;
-    auto docId = static_cast<uint32_t>(item->data(Qt::UserRole).toUInt());
-    requestJoin(docId);
+    if (auto id = selectedDocId()) requestJoin(*id);
 }
 
 void DocumentListWindow::onDeleteClicked() {
-    auto* item = list_->currentItem();
-    if (!item) return;
-    auto docId = static_cast<uint32_t>(item->data(Qt::UserRole).toUInt());
+    auto id = selectedDocId();
+    if (!id) return;
 
     if (QMessageBox::question(this, tr("Delete document"),
                               tr("Delete document #%1? This cannot be undone.")
-                                  .arg(docId)) != QMessageBox::Yes) {
+                                  .arg(*id)) != QMessageBox::Yes) {
         return;
     }
-    QMetaObject::invokeMethod(nm_, "sendFrame", Qt::QueuedConnection,
-                              Q_ARG(QByteArray, encode_doc_delete_request(docId)));
+    nm_->send(encode_doc_delete_request(*id));
 }
 
 void DocumentListWindow::onShareClicked() {
-    auto* item = list_->currentItem();
-    if (!item) {
-        QMessageBox::information(this, tr("Share"),
-                                 tr("Select a document first."));
+    auto id = selectedDocId();
+    if (!id) {
+        QMessageBox::information(this, tr("Share"), tr("Select a document first."));
         return;
     }
-    auto docId = static_cast<uint32_t>(item->data(Qt::UserRole).toUInt());
+    const auto target = promptForText(this, tr("Share document"),
+                                      tr("Grant editor access to username:"));
+    if (target.isEmpty()) return;
 
-    bool ok = false;
-    auto target = QInputDialog::getText(this, tr("Share document"),
-                                        tr("Grant editor access to username:"),
-                                        QLineEdit::Normal, QString(), &ok).trimmed();
-    if (!ok || target.isEmpty()) return;
-
-    QMetaObject::invokeMethod(nm_, "sendFrame", Qt::QueuedConnection,
-                              Q_ARG(QByteArray,
-                                    encode_doc_share_request(docId, target, "editor")));
-    status_->setText(tr("Shared document #%1 with %2").arg(docId).arg(target));
+    nm_->send(encode_doc_share_request(*id, target, "editor"));
+    status_->setText(tr("Shared document #%1 with %2").arg(*id).arg(target));
 }
 
 void DocumentListWindow::requestJoin(uint32_t docId) {
@@ -200,65 +202,67 @@ void DocumentListWindow::requestJoin(uint32_t docId) {
     pending_join_doc_id_ = docId;
     qCInfo(logDocs) << "joining doc=" << docId;
     status_->setText(tr("Opening document #%1…").arg(docId));
-    QMetaObject::invokeMethod(nm_, "sendFrame", Qt::QueuedConnection,
-                              Q_ARG(QByteArray, encode_doc_join_request(docId)));
+    nm_->send(encode_doc_join_request(docId));
 }
 
 void DocumentListWindow::onMessageReceived(QByteArray payload) {
-    auto env = parse_envelope(payload);
-    switch (env.type) {
-    case server::MessageType::DocListResponse: {
-        if (auto msg = parse_doc_list_response(payload)) applyDocList(*msg);
-        break;
-    }
-    case server::MessageType::DocCreateResponse: {
-        auto msg = parse_doc_create_response(payload);
-        if (!msg) break;
-        if (!msg->success) {
-            QMessageBox::warning(this, tr("Create failed"),
-                                 tr("Could not create the document."));
-            refresh();
-            break;
-        }
-        refresh();
-        requestJoin(msg->docId);
-        break;
-    }
-    case server::MessageType::DocJoinResponse: {
-        auto msg = parse_doc_join_response(payload);
-        if (!msg) break;
-        if (msg->docId != pending_join_doc_id_ && pending_join_doc_id_ != 0) {
-            break;
-        }
-        pending_join_doc_id_ = 0;
-        if (!msg->success) {
-            QMessageBox::warning(this, tr("Join failed"),
-                                 tr("Could not open document (%1).")
-                                     .arg(QString::fromStdString(msg->error)));
-            break;
-        }
-        emit documentJoined(*msg);
-        break;
-    }
+    switch (parse_envelope(payload).type) {
+    case server::MessageType::DocListResponse:   handleDocListResponse(payload);   break;
+    case server::MessageType::DocCreateResponse: handleDocCreateResponse(payload); break;
+    case server::MessageType::DocJoinResponse:   handleDocJoinResponse(payload);   break;
+    case server::MessageType::Error:             handleErrorMessage(payload);      break;
+
     case server::MessageType::DocDeleteResponse:
     case server::MessageType::DocShareResponse:
     case server::MessageType::RoleChanged:
     case server::MessageType::DocDeleted:
     case server::MessageType::UserJoined:
-    case server::MessageType::UserLeft: {
+    case server::MessageType::UserLeft:
         refresh();
         break;
-    }
-    case server::MessageType::Error: {
-        if (auto err = parse_error(payload)) {
-            status_->setText(QString::fromStdString(err->message));
-        }
-        pending_join_doc_id_ = 0;
-        break;
-    }
+
     default:
         break;
     }
+}
+
+void DocumentListWindow::handleDocListResponse(const QByteArray& payload) {
+    if (auto msg = parse_doc_list_response(payload)) applyDocList(*msg);
+}
+
+void DocumentListWindow::handleDocCreateResponse(const QByteArray& payload) {
+    auto msg = parse_doc_create_response(payload);
+    if (!msg) return;
+    if (!msg->success) {
+        QMessageBox::warning(this, tr("Create failed"),
+                             tr("Could not create the document."));
+        refresh();
+        return;
+    }
+    refresh();
+    requestJoin(msg->docId);
+}
+
+void DocumentListWindow::handleDocJoinResponse(const QByteArray& payload) {
+    auto msg = parse_doc_join_response(payload);
+    if (!msg) return;
+    if (pending_join_doc_id_ != 0 && msg->docId != pending_join_doc_id_) return;
+
+    pending_join_doc_id_ = 0;
+    if (!msg->success) {
+        QMessageBox::warning(this, tr("Join failed"),
+                             tr("Could not open document (%1).")
+                                 .arg(QString::fromStdString(msg->error)));
+        return;
+    }
+    emit documentJoined(*msg);
+}
+
+void DocumentListWindow::handleErrorMessage(const QByteArray& payload) {
+    if (auto err = parse_error(payload)) {
+        status_->setText(QString::fromStdString(err->message));
+    }
+    pending_join_doc_id_ = 0;
 }
 
 void DocumentListWindow::applyDocList(const server::DocListResponseMsg& msg) {
@@ -266,7 +270,7 @@ void DocumentListWindow::applyDocList(const server::DocListResponseMsg& msg) {
     for (const auto& entry : msg.documents) {
         auto* item = new QListWidgetItem;
         item->setData(Qt::UserRole, entry.docId);
-        auto* card = make_card(entry);
+        auto* card = makeDocCard(entry);
         item->setSizeHint(card->sizeHint());
         list_->addItem(item);
         list_->setItemWidget(item, card);

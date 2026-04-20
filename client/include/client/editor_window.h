@@ -48,12 +48,24 @@ private slots:
     void onDisconnected(QString reason);
 
 private:
+    void setupModels(const server::DocJoinResponseMsg& initial);
+    void setupUi(const server::DocJoinResponseMsg& initial);
+    void wireSignals();
+
+    void handleUserJoined(const QByteArray& payload);
+    void handleUserLeft(const QByteArray& payload);
+    void handleCursorBroadcast(const QByteArray& payload);
+    void handleServerShutdown(const QByteArray& payload);
+    void handleDocDeleted(const QByteArray& payload);
+    void handleRoleChanged(const QByteArray& payload);
+
     void scheduleCursorBroadcast();
     void applyRole(const QString& role);
     void closeWithNotice(const QString& title, const QString& body);
 
     NetworkManager* nm_;
     uint32_t doc_id_;
+    QString base_title_;
     QString role_;
     bool closing_ = false;
 

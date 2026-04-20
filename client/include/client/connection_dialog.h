@@ -30,9 +30,14 @@ private slots:
     void onMessageReceived(QByteArray payload);
 
 private:
+    void buildUi();
+    void wireSignals();
+    void loadSettings();
+    void persistSettings();
     void startAuth(const QString& action);
     void setInputsEnabled(bool enabled);
     void reportFailure(const QString& message);
+    QString humanAuthError(const QString& code) const;
 
     NetworkManager* nm_;
 

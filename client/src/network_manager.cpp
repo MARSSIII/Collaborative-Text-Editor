@@ -42,6 +42,20 @@ void NetworkManager::start() {
     thread_->start();
 }
 
+void NetworkManager::send(QByteArray payload) {
+    QMetaObject::invokeMethod(this, "sendFrame", Qt::QueuedConnection,
+                              Q_ARG(QByteArray, std::move(payload)));
+}
+
+void NetworkManager::requestConnect(const QString& host, quint16 port) {
+    QMetaObject::invokeMethod(this, "connectToHost", Qt::QueuedConnection,
+                              Q_ARG(QString, host), Q_ARG(quint16, port));
+}
+
+void NetworkManager::requestDisconnect() {
+    QMetaObject::invokeMethod(this, "disconnectFromHost", Qt::QueuedConnection);
+}
+
 void NetworkManager::ensureSocket() {
     if (socket_) return;
     socket_ = new QTcpSocket(this);

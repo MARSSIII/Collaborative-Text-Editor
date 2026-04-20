@@ -4,6 +4,8 @@
 
 #include <QMainWindow>
 
+#include <optional>
+
 class QListWidget;
 class QPushButton;
 class QLabel;
@@ -33,8 +35,18 @@ private slots:
     void onDisconnected(QString reason);
 
 private:
+    void buildUi();
+    void wireSignals();
+
     void requestJoin(uint32_t docId);
     void applyDocList(const server::DocListResponseMsg& msg);
+
+    void handleDocListResponse(const QByteArray& payload);
+    void handleDocCreateResponse(const QByteArray& payload);
+    void handleDocJoinResponse(const QByteArray& payload);
+    void handleErrorMessage(const QByteArray& payload);
+
+    std::optional<uint32_t> selectedDocId() const;
 
     NetworkManager* nm_;
 

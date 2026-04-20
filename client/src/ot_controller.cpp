@@ -6,8 +6,6 @@
 #include "client/protocol_codec.h"
 #include "collab/ot.h"
 
-#include <QMetaObject>
-
 namespace collab_client {
 
 namespace {
@@ -167,9 +165,7 @@ void OTController::sendOp(const collab::Operation& op) {
     msg.docId = doc_id_;
     msg.revision = revision_;
     msg.ops.push_back(to_entry(op));
-    auto payload = QByteArray::fromStdString(server::serialize(msg));
-    QMetaObject::invokeMethod(nm_, "sendFrame", Qt::QueuedConnection,
-                              Q_ARG(QByteArray, payload));
+    nm_->send(QByteArray::fromStdString(server::serialize(msg)));
 }
 
 void OTController::emitStateLabel() {

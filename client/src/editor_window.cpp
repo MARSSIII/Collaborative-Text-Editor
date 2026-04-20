@@ -15,16 +15,21 @@
 #include <QInputDialog>
 #include <QLineEdit>
 #include <QMessageBox>
-#include <QMetaObject>
 #include <QTextCursor>
 #include <QTimer>
-
-#include <nlohmann/json.hpp>
 
 namespace collab_client {
 
 namespace {
+
 constexpr int kCursorBroadcastIntervalMs = 80;
+constexpr auto kReadOnlySuffix = " [read-only]";
+
+QColor parseColor(const std::string& hex) {
+    QColor c(QString::fromStdString(hex));
+    return c.isValid() ? c : QColor("#808080");
+}
+
 }
 
 EditorWindow::EditorWindow(NetworkManager* nm,
@@ -33,45 +38,59 @@ EditorWindow::EditorWindow(NetworkManager* nm,
     : QMainWindow(parent),
       nm_(nm),
       doc_id_(initial.docId),
+      base_title_(QStringLiteral("#%1 — %2").arg(initial.docId)
+                      .arg(QString::fromStdString(initial.title))),
       role_(QString::fromStdString(initial.role)) {
-    setWindowTitle(QStringLiteral("#%1 — %2")
-                       .arg(initial.docId)
-                       .arg(QString::fromStdString(initial.title)));
+    setWindowTitle(base_title_);
     resize(1100, 680);
     qCInfo(logEditor) << "opened doc=" << initial.docId
                       << "title=" << QString::fromStdString(initial.title)
                       << "rev=" << initial.revision
                       << "role=" << role_;
 
+    setupModels(initial);
+    setupUi(initial);
+    wireSignals();
+
+    applyRole(role_);
+    onCursorPositionChanged();
+    scheduleCursorBroadcast();
+}
+
+EditorWindow::~EditorWindow() = default;
+
+void EditorWindow::setupModels(const server::DocJoinResponseMsg& initial) {
     local_doc_ = std::make_unique<LocalDocument>(initial.content, initial.revision);
     remote_cursors_ = std::make_unique<RemoteCursorsModel>(nm_->userId());
 
+    online_user_ids_.insert(nm_->userId());
+    for (const auto& u : initial.users) online_user_ids_.insert(u.userId);
+}
+
+void EditorWindow::setupUi(const server::DocJoinResponseMsg& initial) {
     editor_ = new EditorWidget(this);
     editor_->setIdentity(nm_->userId(), initial.revision);
     editor_->resetContent(QString::fromUtf8(initial.content.data(),
                                             static_cast<int>(initial.content.size())));
+    setCentralWidget(editor_);
 
     ot_ = new OTController(nm_, local_doc_.get(), doc_id_, initial.revision, this);
 
-    online_user_ids_.insert(nm_->userId());
-    for (const auto& u : initial.users) online_user_ids_.insert(u.userId);
-
     user_panel_ = new UserPanelWidget;
-    QString local_color_hex;
     QString local_username = nm_->username();
+    QColor local_color("#808080");
     for (const auto& u : initial.users) {
         if (u.userId == nm_->userId()) {
-            local_color_hex = QString::fromStdString(u.color);
             local_username = QString::fromStdString(u.username);
+            local_color = parseColor(u.color);
+            break;
         }
     }
-    user_panel_->setLocalUser(nm_->userId(), local_username,
-                              local_color_hex.isEmpty() ? QColor("#808080")
-                                                        : QColor(local_color_hex));
+    user_panel_->setLocalUser(nm_->userId(), local_username, local_color);
     for (const auto& u : initial.users) {
         if (u.userId == nm_->userId()) continue;
         user_panel_->upsertUser(u.userId, QString::fromStdString(u.username),
-                                QColor(QString::fromStdString(u.color)));
+                                parseColor(u.color));
     }
 
     auto* dock = new QDockWidget(tr("Users"), this);
@@ -85,11 +104,12 @@ EditorWindow::EditorWindow(NetworkManager* nm,
     status_->setOnlineCount(static_cast<int>(online_user_ids_.size()));
     status_->setStateLabel("SYN");
 
-    setCentralWidget(editor_);
-
     cursor_broadcast_timer_ = new QTimer(this);
     cursor_broadcast_timer_->setInterval(kCursorBroadcastIntervalMs);
     cursor_broadcast_timer_->setSingleShot(true);
+}
+
+void EditorWindow::wireSignals() {
     connect(cursor_broadcast_timer_, &QTimer::timeout,
             this, &EditorWindow::onCursorBroadcastTimeout);
 
@@ -104,6 +124,7 @@ EditorWindow::EditorWindow(NetworkManager* nm,
             this, &EditorWindow::onNetworkMessage);
     connect(nm_, &NetworkManager::disconnected,
             this, &EditorWindow::onDisconnected);
+
     connect(ot_, &OTController::revisionChanged,
             this, &EditorWindow::onRevisionChanged);
     connect(ot_, &OTController::remoteOperationApplied,
@@ -117,26 +138,19 @@ EditorWindow::EditorWindow(NetworkManager* nm,
             this, &EditorWindow::onRemoteCursorsChanged);
     connect(user_panel_, &UserPanelWidget::shareRequested,
             this, &EditorWindow::onShareClicked);
-
-    applyRole(role_);
-    onCursorPositionChanged();
-    scheduleCursorBroadcast();
 }
-
-EditorWindow::~EditorWindow() = default;
 
 void EditorWindow::closeEvent(QCloseEvent* event) {
     qCInfo(logEditor) << "closing doc=" << doc_id_ << "forced=" << closing_;
     if (!closing_) {
-        QMetaObject::invokeMethod(nm_, "sendFrame", Qt::QueuedConnection,
-                                  Q_ARG(QByteArray, encode_doc_leave_request(doc_id_)));
+        nm_->send(encode_doc_leave_request(doc_id_));
     }
     emit leftDocument();
     event->accept();
 }
 
 void EditorWindow::onCursorPositionChanged() {
-    auto c = editor_->textCursor();
+    const auto c = editor_->textCursor();
     status_->setCursorPosition(c.blockNumber() + 1, c.columnNumber() + 1);
     scheduleCursorBroadcast();
 }
@@ -154,12 +168,10 @@ void EditorWindow::onCursorBroadcastTimeout() {
     if (!cursor_dirty_) return;
     cursor_dirty_ = false;
     const uint32_t pos = editor_->localCursorUtf8Position();
-    auto sel = editor_->localSelectionUtf8();
+    const auto sel = editor_->localSelectionUtf8();
     std::optional<uint32_t> sel_start, sel_end;
     if (sel) { sel_start = sel->first; sel_end = sel->second; }
-    QMetaObject::invokeMethod(nm_, "sendFrame", Qt::QueuedConnection,
-                              Q_ARG(QByteArray,
-                                    encode_cursor_update(doc_id_, pos, sel_start, sel_end)));
+    nm_->send(encode_cursor_update(doc_id_, pos, sel_start, sel_end));
 }
 
 void EditorWindow::onRemoteOperationApplied(const collab::Operation& op) {
@@ -177,55 +189,70 @@ void EditorWindow::onRemoteCursorsChanged() {
 void EditorWindow::onNetworkMessage(QByteArray payload) {
     ot_->onNetworkMessage(payload);
 
-    auto env = parse_envelope(payload);
-    if (env.type == server::MessageType::UserJoined) {
-        if (auto msg = parse_user_joined(payload); msg && msg->docId == doc_id_) {
-            online_user_ids_.insert(msg->userId);
-            status_->setOnlineCount(static_cast<int>(online_user_ids_.size()));
-            user_panel_->upsertUser(msg->userId,
-                                    QString::fromStdString(msg->username),
-                                    QColor(QString::fromStdString(msg->color)));
-            status_->showMessage(tr("%1 joined")
-                                     .arg(QString::fromStdString(msg->username)),
-                                 2000);
-        }
-    } else if (env.type == server::MessageType::UserLeft) {
-        if (auto msg = parse_user_left(payload); msg && msg->docId == doc_id_) {
-            online_user_ids_.erase(msg->userId);
-            status_->setOnlineCount(static_cast<int>(online_user_ids_.size()));
-            user_panel_->removeUser(msg->userId);
-            remote_cursors_->removeUser(msg->userId);
-            status_->showMessage(tr("%1 left")
-                                     .arg(QString::fromStdString(msg->username)),
-                                 2000);
-        }
-    } else if (env.type == server::MessageType::CursorBroadcast) {
-        if (auto msg = parse_cursor_broadcast(payload); msg && msg->docId == doc_id_) {
-            remote_cursors_->applyBroadcast(*msg);
-        }
-    } else if (env.type == server::MessageType::ServerShutdown) {
-        auto msg = parse_server_shutdown(payload);
-        const QString body = msg
-            ? QString::fromStdString(msg->message)
-            : tr("Server is shutting down");
-        qCWarning(logEditor) << "server shutdown:" << body;
-        closeWithNotice(tr("Server shutdown"), body);
-    } else if (env.type == server::MessageType::DocDeleted) {
-        if (auto msg = parse_doc_deleted(payload); msg && msg->docId == doc_id_) {
-            qCWarning(logEditor) << "document deleted doc=" << doc_id_;
-            closeWithNotice(tr("Document deleted"),
-                            tr("This document was deleted by the owner."));
-        }
-    } else if (env.type == server::MessageType::RoleChanged) {
-        if (auto msg = parse_role_changed(payload); msg && msg->docId == doc_id_) {
-            const auto new_role = QString::fromStdString(msg->newRole);
-            qCInfo(logEditor) << "role changed doc=" << doc_id_
-                              << "from=" << role_ << "to=" << new_role;
-            role_ = new_role;
-            applyRole(role_);
-            status_->showMessage(tr("Your role is now: %1").arg(role_), 3000);
-        }
+    switch (parse_envelope(payload).type) {
+    case server::MessageType::UserJoined:      handleUserJoined(payload);      break;
+    case server::MessageType::UserLeft:        handleUserLeft(payload);        break;
+    case server::MessageType::CursorBroadcast: handleCursorBroadcast(payload); break;
+    case server::MessageType::ServerShutdown:  handleServerShutdown(payload);  break;
+    case server::MessageType::DocDeleted:      handleDocDeleted(payload);      break;
+    case server::MessageType::RoleChanged:     handleRoleChanged(payload);     break;
+    default: break;
     }
+}
+
+void EditorWindow::handleUserJoined(const QByteArray& payload) {
+    auto msg = parse_user_joined(payload);
+    if (!msg || msg->docId != doc_id_) return;
+    online_user_ids_.insert(msg->userId);
+    status_->setOnlineCount(static_cast<int>(online_user_ids_.size()));
+    user_panel_->upsertUser(msg->userId,
+                            QString::fromStdString(msg->username),
+                            parseColor(msg->color));
+    status_->showMessage(tr("%1 joined").arg(QString::fromStdString(msg->username)), 2000);
+}
+
+void EditorWindow::handleUserLeft(const QByteArray& payload) {
+    auto msg = parse_user_left(payload);
+    if (!msg || msg->docId != doc_id_) return;
+    online_user_ids_.erase(msg->userId);
+    status_->setOnlineCount(static_cast<int>(online_user_ids_.size()));
+    user_panel_->removeUser(msg->userId);
+    remote_cursors_->removeUser(msg->userId);
+    status_->showMessage(tr("%1 left").arg(QString::fromStdString(msg->username)), 2000);
+}
+
+void EditorWindow::handleCursorBroadcast(const QByteArray& payload) {
+    auto msg = parse_cursor_broadcast(payload);
+    if (!msg || msg->docId != doc_id_) return;
+    remote_cursors_->applyBroadcast(*msg);
+}
+
+void EditorWindow::handleServerShutdown(const QByteArray& payload) {
+    auto msg = parse_server_shutdown(payload);
+    const QString body = msg
+        ? QString::fromStdString(msg->message)
+        : tr("Server is shutting down");
+    qCWarning(logEditor) << "server shutdown:" << body;
+    closeWithNotice(tr("Server shutdown"), body);
+}
+
+void EditorWindow::handleDocDeleted(const QByteArray& payload) {
+    auto msg = parse_doc_deleted(payload);
+    if (!msg || msg->docId != doc_id_) return;
+    qCWarning(logEditor) << "document deleted doc=" << doc_id_;
+    closeWithNotice(tr("Document deleted"),
+                    tr("This document was deleted by the owner."));
+}
+
+void EditorWindow::handleRoleChanged(const QByteArray& payload) {
+    auto msg = parse_role_changed(payload);
+    if (!msg || msg->docId != doc_id_) return;
+    const auto new_role = QString::fromStdString(msg->newRole);
+    qCInfo(logEditor) << "role changed doc=" << doc_id_
+                      << "from=" << role_ << "to=" << new_role;
+    role_ = new_role;
+    applyRole(role_);
+    status_->showMessage(tr("Your role is now: %1").arg(role_), 3000);
 }
 
 void EditorWindow::onRevisionChanged(uint32_t revision) {
@@ -240,15 +267,13 @@ void EditorWindow::onFatalError(QString message) {
 
 void EditorWindow::onShareClicked() {
     bool ok = false;
-    auto target = QInputDialog::getText(this, tr("Share document"),
-                                        tr("Grant editor access to username:"),
-                                        QLineEdit::Normal, QString(), &ok).trimmed();
+    const auto target = QInputDialog::getText(this, tr("Share document"),
+                                              tr("Grant editor access to username:"),
+                                              QLineEdit::Normal, QString(), &ok).trimmed();
     if (!ok || target.isEmpty()) return;
 
     qCInfo(logEditor) << "share doc=" << doc_id_ << "with=" << target;
-    QMetaObject::invokeMethod(nm_, "sendFrame", Qt::QueuedConnection,
-                              Q_ARG(QByteArray,
-                                    encode_doc_share_request(doc_id_, target, "editor")));
+    nm_->send(encode_doc_share_request(doc_id_, target, "editor"));
     status_->showMessage(tr("Shared with %1").arg(target), 2500);
 }
 
@@ -263,11 +288,7 @@ void EditorWindow::applyRole(const QString& role) {
     const bool read_only = (role != QStringLiteral("owner")
                             && role != QStringLiteral("editor"));
     editor_->setReadOnly(read_only);
-    const QString base = windowTitle();
-    const QString suffix = QStringLiteral(" [read-only]");
-    if (read_only && !base.endsWith(suffix)) setWindowTitle(base + suffix);
-    else if (!read_only && base.endsWith(suffix))
-        setWindowTitle(base.left(base.size() - suffix.size()));
+    setWindowTitle(read_only ? base_title_ + kReadOnlySuffix : base_title_);
 }
 
 void EditorWindow::closeWithNotice(const QString& title, const QString& body) {
