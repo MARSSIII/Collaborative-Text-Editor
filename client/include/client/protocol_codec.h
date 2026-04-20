@@ -17,6 +17,7 @@ QByteArray encode_doc_create_request(const QString& title);
 QByteArray encode_doc_join_request(uint32_t docId);
 QByteArray encode_doc_leave_request(uint32_t docId);
 QByteArray encode_doc_delete_request(uint32_t docId);
+QByteArray encode_doc_share_request(uint32_t docId, const QString& targetUsername, const QString& role);
 
 struct ParsedEnvelope {
     server::MessageType type;

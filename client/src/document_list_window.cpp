@@ -41,6 +41,7 @@ DocumentListWindow::DocumentListWindow(NetworkManager* nm, QWidget* parent)
     new_btn_ = new QPushButton(tr("New"));
     open_btn_ = new QPushButton(tr("Open"));
     delete_btn_ = new QPushButton(tr("Delete"));
+    share_btn_ = new QPushButton(tr("Share"));
     refresh_btn_ = new QPushButton(tr("Refresh"));
     status_ = new QLabel(tr("Loading…"));
 
@@ -48,6 +49,7 @@ DocumentListWindow::DocumentListWindow(NetworkManager* nm, QWidget* parent)
     buttons->addWidget(new_btn_);
     buttons->addWidget(open_btn_);
     buttons->addWidget(delete_btn_);
+    buttons->addWidget(share_btn_);
     buttons->addWidget(refresh_btn_);
     buttons->addStretch();
 
@@ -59,6 +61,7 @@ DocumentListWindow::DocumentListWindow(NetworkManager* nm, QWidget* parent)
     connect(new_btn_, &QPushButton::clicked, this, &DocumentListWindow::onNewClicked);
     connect(open_btn_, &QPushButton::clicked, this, &DocumentListWindow::onOpenClicked);
     connect(delete_btn_, &QPushButton::clicked, this, &DocumentListWindow::onDeleteClicked);
+    connect(share_btn_, &QPushButton::clicked, this, &DocumentListWindow::onShareClicked);
     connect(refresh_btn_, &QPushButton::clicked, this, &DocumentListWindow::refresh);
     connect(list_, &QListWidget::itemDoubleClicked, this,
             [this](QListWidgetItem*) { onOpenClicked(); });
@@ -108,6 +111,27 @@ void DocumentListWindow::onDeleteClicked() {
                               Q_ARG(QByteArray, encode_doc_delete_request(docId)));
 }
 
+void DocumentListWindow::onShareClicked() {
+    auto* item = list_->currentItem();
+    if (!item) {
+        QMessageBox::information(this, tr("Share"),
+                                 tr("Select a document first."));
+        return;
+    }
+    auto docId = static_cast<uint32_t>(item->data(Qt::UserRole).toUInt());
+
+    bool ok = false;
+    auto target = QInputDialog::getText(this, tr("Share document"),
+                                        tr("Grant editor access to username:"),
+                                        QLineEdit::Normal, QString(), &ok).trimmed();
+    if (!ok || target.isEmpty()) return;
+
+    QMetaObject::invokeMethod(nm_, "sendFrame", Qt::QueuedConnection,
+                              Q_ARG(QByteArray,
+                                    encode_doc_share_request(docId, target, "editor")));
+    status_->setText(tr("Shared document #%1 with %2").arg(docId).arg(target));
+}
+
 void DocumentListWindow::requestJoin(uint32_t docId) {
     if (pending_join_doc_id_ != 0) return;
     pending_join_doc_id_ = docId;
@@ -152,10 +176,9 @@ void DocumentListWindow::onMessageReceived(QByteArray payload) {
         emit documentJoined(*msg);
         break;
     }
-    case server::MessageType::DocDeleteResponse: {
-        refresh();
-        break;
-    }
+    case server::MessageType::DocDeleteResponse:
+    case server::MessageType::DocShareResponse:
+    case server::MessageType::RoleChanged:
     case server::MessageType::DocDeleted:
     case server::MessageType::UserJoined:
     case server::MessageType::UserLeft: {

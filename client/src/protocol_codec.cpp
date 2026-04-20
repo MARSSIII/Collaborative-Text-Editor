@@ -44,6 +44,16 @@ QByteArray encode_doc_delete_request(uint32_t docId) {
     return to_qbytes(server::serialize(server::DocDeleteRequestMsg{.docId = docId}));
 }
 
+QByteArray encode_doc_share_request(uint32_t docId,
+                                    const QString& targetUsername,
+                                    const QString& role) {
+    return to_qbytes(server::serialize(server::DocShareRequestMsg{
+        .docId = docId,
+        .targetUsername = targetUsername.toStdString(),
+        .role = role.toStdString(),
+    }));
+}
+
 ParsedEnvelope parse_envelope(const QByteArray& payload) {
     try {
         auto j = nlohmann::json::parse(payload.constData(),

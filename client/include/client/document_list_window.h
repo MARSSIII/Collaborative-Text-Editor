@@ -21,11 +21,14 @@ public:
 signals:
     void documentJoined(server::DocJoinResponseMsg response);
 
-private slots:
+public slots:
     void refresh();
+
+private slots:
     void onNewClicked();
     void onOpenClicked();
     void onDeleteClicked();
+    void onShareClicked();
     void onMessageReceived(QByteArray payload);
 
 private:
@@ -38,6 +41,7 @@ private:
     QPushButton* new_btn_;
     QPushButton* open_btn_;
     QPushButton* delete_btn_;
+    QPushButton* share_btn_;
     QPushButton* refresh_btn_;
     QLabel* status_;
 

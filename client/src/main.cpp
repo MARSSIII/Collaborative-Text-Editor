@@ -35,7 +35,10 @@ int main(int argc, char** argv) {
         auto* editor = new collab_client::EditorWindow(nm, resp);
         editor->setAttribute(Qt::WA_DeleteOnClose);
         QObject::connect(editor, &collab_client::EditorWindow::leftDocument,
-                         docs, &QWidget::show);
+                         docs, [docs]() {
+                             docs->show();
+                             docs->refresh();
+                         });
         docs->hide();
         editor->show();
     });
