@@ -50,6 +50,7 @@ private slots:
 private:
     void setupModels(const server::DocJoinResponseMsg& initial);
     void setupUi(const server::DocJoinResponseMsg& initial);
+    void setupToolbar();
     void wireSignals();
 
     void handleUserJoined(const QByteArray& payload);

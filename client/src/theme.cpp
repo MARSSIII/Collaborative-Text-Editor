@@ -122,6 +122,28 @@ QFrame#docCard {
     border-radius: 8px;
 }
 
+QToolBar {
+    background: #ffffff;
+    border: none;
+    border-bottom: 1px solid #e1e4e8;
+    padding: 6px 10px;
+    spacing: 6px;
+}
+QToolBar QToolButton {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 4px 10px;
+    color: #1f2328;
+}
+QToolBar QToolButton:hover {
+    background: #f1f3f5;
+    border-color: #d0d7de;
+}
+QToolBar QToolButton:pressed {
+    background: #e5e8eb;
+}
+
 QStatusBar {
     background: #ffffff;
     border-top: 1px solid #e1e4e8;

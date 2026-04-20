@@ -10,13 +10,16 @@
 #include "client/status_bar_widget.h"
 #include "client/user_panel_widget.h"
 
+#include <QAction>
 #include <QCloseEvent>
 #include <QDockWidget>
 #include <QInputDialog>
+#include <QKeySequence>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QTextCursor>
 #include <QTimer>
+#include <QToolBar>
 
 namespace collab_client {
 
@@ -50,6 +53,7 @@ EditorWindow::EditorWindow(NetworkManager* nm,
 
     setupModels(initial);
     setupUi(initial);
+    setupToolbar();
     wireSignals();
 
     applyRole(role_);
@@ -107,6 +111,25 @@ void EditorWindow::setupUi(const server::DocJoinResponseMsg& initial) {
     cursor_broadcast_timer_ = new QTimer(this);
     cursor_broadcast_timer_->setInterval(kCursorBroadcastIntervalMs);
     cursor_broadcast_timer_->setSingleShot(true);
+}
+
+void EditorWindow::setupToolbar() {
+    auto* toolbar = addToolBar(tr("Document"));
+    toolbar->setObjectName("DocumentToolBar");
+    toolbar->setMovable(false);
+    toolbar->setFloatable(false);
+    toolbar->setContextMenuPolicy(Qt::PreventContextMenu);
+    toolbar->setToolButtonStyle(Qt::ToolButtonTextOnly);
+
+    auto* leave = toolbar->addAction(tr("← Documents"));
+    leave->setShortcut(QKeySequence::Close);
+    leave->setToolTip(tr("Return to the document list (Ctrl+W)"));
+    connect(leave, &QAction::triggered, this, &QWidget::close);
+
+    auto* share = toolbar->addAction(tr("Share…"));
+    share->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+S")));
+    share->setToolTip(tr("Grant editor access to another user (Ctrl+Shift+S)"));
+    connect(share, &QAction::triggered, this, &EditorWindow::onShareClicked);
 }
 
 void EditorWindow::wireSignals() {
