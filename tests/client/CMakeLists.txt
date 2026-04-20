@@ -3,12 +3,14 @@ add_executable(client_codec_tests
     test_utf8_codec.cpp
     test_local_document.cpp
     test_cursor_translator.cpp
+    test_remote_cursors_model.cpp
 )
 target_link_libraries(client_codec_tests PRIVATE
     collab_client_lib
     collab::collab
     collab::protocol
     Qt5::Core
+    Qt5::Gui
     GTest::gtest_main
 )
 gtest_discover_tests(client_codec_tests)

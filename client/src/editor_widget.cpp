@@ -3,8 +3,15 @@
 #include "client/cursor_translator.h"
 #include "client/utf8_codec.h"
 
+#include <QFontMetrics>
+#include <QPaintEvent>
+#include <QPainter>
+#include <QRect>
+#include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
+
+#include <algorithm>
 
 namespace collab_client {
 
@@ -65,6 +72,84 @@ void EditorWidget::applyRemoteOperation(const collab::Operation& op) {
     setTextCursor(shifted);
 
     applying_remote_ = false;
+}
+
+void EditorWidget::setRemoteCursors(std::vector<RemoteCursor> cursors) {
+    remote_cursors_ = std::move(cursors);
+    viewport()->update();
+}
+
+uint32_t EditorWidget::localCursorUtf8Position() const {
+    return utf8_codec::utf16_to_utf8_offset(last_known_text_, textCursor().position());
+}
+
+std::optional<std::pair<uint32_t, uint32_t>> EditorWidget::localSelectionUtf8() const {
+    auto c = textCursor();
+    if (!c.hasSelection()) return std::nullopt;
+    const uint32_t start = utf8_codec::utf16_to_utf8_offset(last_known_text_, c.selectionStart());
+    const uint32_t end = utf8_codec::utf16_to_utf8_offset(last_known_text_, c.selectionEnd());
+    return std::make_pair(start, end);
+}
+
+void EditorWidget::paintEvent(QPaintEvent* event) {
+    QPlainTextEdit::paintEvent(event);
+    if (remote_cursors_.empty()) return;
+
+    QPainter painter(viewport());
+    painter.setRenderHint(QPainter::Antialiasing, false);
+    const auto utf8 = last_known_text_.toUtf8();
+    const QFontMetrics fm(font());
+    const int label_height = fm.height();
+
+    for (const auto& rc : remote_cursors_) {
+        const int utf16_pos = utf8_codec::utf8_to_utf16_offset(utf8, rc.position);
+        QTextCursor tc(document());
+        tc.setPosition(std::clamp(utf16_pos, 0, document()->characterCount() - 1));
+        const QRect caret = cursorRect(tc);
+        if (!event->rect().intersects(caret.adjusted(-2, -label_height - 2, 2, 2))) {
+            if (!rc.selectionStart || !rc.selectionEnd) continue;
+        }
+
+        if (rc.selectionStart && rc.selectionEnd && *rc.selectionStart != *rc.selectionEnd) {
+            const uint32_t s8 = std::min(*rc.selectionStart, *rc.selectionEnd);
+            const uint32_t e8 = std::max(*rc.selectionStart, *rc.selectionEnd);
+            const int s16 = utf8_codec::utf8_to_utf16_offset(utf8, s8);
+            const int e16 = utf8_codec::utf8_to_utf16_offset(utf8, e8);
+            QTextCursor sc(document());
+            sc.setPosition(s16);
+            sc.setPosition(e16, QTextCursor::KeepAnchor);
+            QColor fill = rc.color;
+            fill.setAlpha(60);
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(fill);
+            auto block = document()->findBlock(s16);
+            int cursor_in_block = s16;
+            while (block.isValid() && cursor_in_block < e16) {
+                const int block_end = std::min<int>(block.position() + block.length() - 1, e16);
+                QTextCursor a(document()); a.setPosition(cursor_in_block);
+                QTextCursor b(document()); b.setPosition(block_end);
+                QRect ra = cursorRect(a);
+                QRect rb = cursorRect(b);
+                QRect band(ra.left(), ra.top(), std::max(2, rb.right() - ra.left()), ra.height());
+                painter.drawRect(band);
+                cursor_in_block = block_end + 1;
+                block = block.next();
+            }
+        }
+
+        painter.setPen(QPen(rc.color, 2));
+        painter.drawLine(caret.topLeft(), caret.bottomLeft());
+
+        const QString label = rc.username;
+        const int label_w = fm.horizontalAdvance(label) + 6;
+        QRect label_rect(caret.left(), caret.top() - label_height - 1, label_w, label_height);
+        if (label_rect.top() < 0) label_rect.moveTop(caret.bottom() + 1);
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(rc.color);
+        painter.drawRect(label_rect);
+        painter.setPen(Qt::white);
+        painter.drawText(label_rect.adjusted(3, 0, -3, 0), Qt::AlignVCenter | Qt::AlignLeft, label);
+    }
 }
 
 void EditorWidget::onContentsChange(int position, int charsRemoved, int charsAdded) {

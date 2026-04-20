@@ -16,6 +16,8 @@ add_library(collab_client_lib STATIC
     src/editor_widget.cpp
     src/editor_window.cpp
     src/status_bar_widget.cpp
+    src/remote_cursors_model.cpp
+    src/user_panel_widget.cpp
     include/client/network_manager.h
     include/client/connection_dialog.h
     include/client/document_list_window.h
@@ -23,6 +25,8 @@ add_library(collab_client_lib STATIC
     include/client/editor_widget.h
     include/client/editor_window.h
     include/client/status_bar_widget.h
+    include/client/remote_cursors_model.h
+    include/client/user_panel_widget.h
 )
 
 set_target_properties(collab_client_lib PROPERTIES

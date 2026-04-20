@@ -54,6 +54,18 @@ QByteArray encode_doc_share_request(uint32_t docId,
     }));
 }
 
+QByteArray encode_cursor_update(uint32_t docId,
+                                uint32_t position,
+                                std::optional<uint32_t> selectionStart,
+                                std::optional<uint32_t> selectionEnd) {
+    return to_qbytes(server::serialize(server::CursorUpdateMsg{
+        .docId = docId,
+        .position = position,
+        .selectionStart = selectionStart,
+        .selectionEnd = selectionEnd,
+    }));
+}
+
 ParsedEnvelope parse_envelope(const QByteArray& payload) {
     try {
         auto j = nlohmann::json::parse(payload.constData(),
@@ -100,6 +112,18 @@ std::optional<server::DocJoinResponseMsg> parse_doc_join_response(const QByteArr
 
 std::optional<server::DocDeleteResponseMsg> parse_doc_delete_response(const QByteArray& payload) {
     return parse_as<server::DocDeleteResponseMsg>(payload);
+}
+
+std::optional<server::CursorBroadcastMsg> parse_cursor_broadcast(const QByteArray& payload) {
+    return parse_as<server::CursorBroadcastMsg>(payload);
+}
+
+std::optional<server::UserJoinedMsg> parse_user_joined(const QByteArray& payload) {
+    return parse_as<server::UserJoinedMsg>(payload);
+}
+
+std::optional<server::UserLeftMsg> parse_user_left(const QByteArray& payload) {
+    return parse_as<server::UserLeftMsg>(payload);
 }
 
 std::optional<server::ErrorMsg> parse_error(const QByteArray& payload) {
