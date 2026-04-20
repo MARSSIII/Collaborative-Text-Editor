@@ -13,6 +13,7 @@ class AccessControl {
 public:
     void grant(uint32_t docId, uint32_t userId, Role role);
     void revoke(uint32_t docId, uint32_t userId);
+    void revoke_all_for_document(uint32_t docId);
 
     bool try_revoke(uint32_t docId, uint32_t requesterId, uint32_t targetId);
 

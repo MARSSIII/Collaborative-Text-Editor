@@ -66,6 +66,7 @@ bool DocumentManager::delete_document(uint32_t docId) {
     }
 
     cursor_buffers_.erase(docId);
+    access_.revoke_all_for_document(docId);
 
     auto doc_path = std::format("{}/documents/{}.txt", data_dir_, docId);
     auto meta_path = std::format("{}/documents/{}.meta", data_dir_, docId);

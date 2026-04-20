@@ -31,6 +31,17 @@ void AccessControl::revoke(uint32_t docId, uint32_t userId) {
     rights_.erase(make_key(docId, userId));
 }
 
+void AccessControl::revoke_all_for_document(uint32_t docId) {
+    std::lock_guard lock(mutex_);
+    for (auto it = rights_.begin(); it != rights_.end(); ) {
+        if (static_cast<uint32_t>(it->first >> 32) == docId) {
+            it = rights_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
 bool AccessControl::try_revoke(uint32_t docId, uint32_t requesterId,
                                uint32_t targetId) {
     std::lock_guard lock(mutex_);

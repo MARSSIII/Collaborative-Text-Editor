@@ -125,3 +125,19 @@ TEST_F(AccessControlTest, ListDocumentsForUser) {
     EXPECT_EQ(docs[0], doc_id);
     EXPECT_EQ(docs[1], doc_id_2);
 }
+
+TEST_F(AccessControlTest, RevokeAllForDocumentRemovesEveryone) {
+    uint32_t other_doc = 200;
+    ac.grant(other_doc, owner_id, Role::Owner);
+
+    ac.revoke_all_for_document(doc_id);
+
+    EXPECT_FALSE(ac.can_read(doc_id, owner_id));
+    EXPECT_FALSE(ac.can_read(doc_id, editor_id));
+    EXPECT_FALSE(ac.can_read(doc_id, viewer_id));
+    EXPECT_TRUE(ac.can_read(other_doc, owner_id));
+
+    auto docs = ac.list_documents_for_user(owner_id);
+    ASSERT_EQ(docs.size(), 1u);
+    EXPECT_EQ(docs[0], other_doc);
+}
