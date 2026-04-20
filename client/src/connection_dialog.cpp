@@ -6,6 +6,7 @@
 #include "collab_protocol/protocol.h"
 
 #include <QFormLayout>
+#include <QFrame>
 #include <QHBoxLayout>
 #include <QIntValidator>
 #include <QLabel>
@@ -20,39 +21,75 @@ namespace collab_client {
 
 ConnectionDialog::ConnectionDialog(NetworkManager* nm, QWidget* parent)
     : QDialog(parent), nm_(nm) {
-    setWindowTitle(tr("Connect to server"));
+    setWindowTitle(tr("Collab Editor"));
+    setMinimumWidth(420);
+
+    auto* title = new QLabel(tr("Collab Editor"));
+    title->setObjectName("h1");
+    auto* subtitle = new QLabel(tr("Sign in or create a new account."));
+    subtitle->setObjectName("subtitle");
 
     host_edit_ = new QLineEdit;
+    host_edit_->setPlaceholderText(tr("127.0.0.1"));
     port_edit_ = new QLineEdit;
     port_edit_->setValidator(new QIntValidator(1, 65535, this));
+    port_edit_->setPlaceholderText(tr("9000"));
     username_edit_ = new QLineEdit;
+    username_edit_->setPlaceholderText(tr("username"));
     password_edit_ = new QLineEdit;
     password_edit_->setEchoMode(QLineEdit::Password);
+    password_edit_->setPlaceholderText(tr("password"));
 
     QSettings settings;
     host_edit_->setText(settings.value("lastHost", "127.0.0.1").toString());
     port_edit_->setText(settings.value("lastPort", 9000).toString());
     username_edit_->setText(settings.value("lastUser", "").toString());
 
-    login_btn_ = new QPushButton(tr("Login"));
+    login_btn_ = new QPushButton(tr("Sign in"));
+    login_btn_->setObjectName("primary");
+    login_btn_->setDefault(true);
     register_btn_ = new QPushButton(tr("Register"));
     status_label_ = new QLabel;
+    status_label_->setObjectName("muted");
     status_label_->setWordWrap(true);
 
+    auto makeFormLabel = [](const QString& t) {
+        auto* l = new QLabel(t);
+        l->setObjectName("formLabel");
+        return l;
+    };
+
     auto* form = new QFormLayout;
-    form->addRow(tr("Host:"), host_edit_);
-    form->addRow(tr("Port:"), port_edit_);
-    form->addRow(tr("Username:"), username_edit_);
-    form->addRow(tr("Password:"), password_edit_);
+    form->setLabelAlignment(Qt::AlignLeft);
+    form->setFormAlignment(Qt::AlignTop);
+    form->setHorizontalSpacing(12);
+    form->setVerticalSpacing(8);
+    form->addRow(makeFormLabel(tr("Host")), host_edit_);
+    form->addRow(makeFormLabel(tr("Port")), port_edit_);
+    form->addRow(makeFormLabel(tr("Username")), username_edit_);
+    form->addRow(makeFormLabel(tr("Password")), password_edit_);
 
     auto* buttons = new QHBoxLayout;
-    buttons->addWidget(login_btn_);
     buttons->addWidget(register_btn_);
+    buttons->addStretch();
+    buttons->addWidget(login_btn_);
+
+    auto* card = new QFrame;
+    card->setObjectName("card");
+    auto* cardLayout = new QVBoxLayout(card);
+    cardLayout->setContentsMargins(24, 22, 24, 22);
+    cardLayout->setSpacing(12);
+    cardLayout->addWidget(title);
+    cardLayout->addWidget(subtitle);
+    cardLayout->addSpacing(6);
+    cardLayout->addLayout(form);
+    cardLayout->addSpacing(4);
+    cardLayout->addLayout(buttons);
+    cardLayout->addWidget(status_label_);
 
     auto* root = new QVBoxLayout(this);
-    root->addLayout(form);
-    root->addLayout(buttons);
-    root->addWidget(status_label_);
+    root->setContentsMargins(16, 16, 16, 16);
+    root->addWidget(card);
 
     connect(login_btn_, &QPushButton::clicked, this, &ConnectionDialog::onLoginClicked);
     connect(register_btn_, &QPushButton::clicked, this, &ConnectionDialog::onRegisterClicked);

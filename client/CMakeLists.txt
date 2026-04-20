@@ -19,7 +19,9 @@ add_library(collab_client_lib STATIC
     src/remote_cursors_model.cpp
     src/user_panel_widget.cpp
     src/logging.cpp
+    src/theme.cpp
     include/client/logging.h
+    include/client/theme.h
     include/client/network_manager.h
     include/client/connection_dialog.h
     include/client/document_list_window.h

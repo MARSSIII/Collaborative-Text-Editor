@@ -3,7 +3,9 @@
 #include "client/logging.h"
 #include "client/network_manager.h"
 #include "client/protocol_codec.h"
+#include "client/theme.h"
 
+#include <QFrame>
 #include <QHBoxLayout>
 #include <QInputDialog>
 #include <QLabel>
@@ -20,12 +22,44 @@ namespace collab_client {
 
 namespace {
 
-QString format_entry(const server::DocListEntry& e) {
-    return QStringLiteral("[%1] %2  —  %3  (online: %4)")
-        .arg(e.docId)
-        .arg(QString::fromStdString(e.title))
-        .arg(QString::fromStdString(e.role))
-        .arg(e.onlineCount);
+QWidget* make_card(const server::DocListEntry& e) {
+    auto* card = new QFrame;
+    card->setObjectName("docCard");
+
+    auto* title = new QLabel(QString::fromStdString(e.title));
+    auto tf = title->font();
+    tf.setPointSizeF(tf.pointSizeF() + 1.5);
+    tf.setBold(true);
+    title->setFont(tf);
+
+    auto* id_label = new QLabel(QStringLiteral("#%1").arg(e.docId));
+    id_label->setObjectName("muted");
+
+    const QString role = QString::fromStdString(e.role);
+    auto* role_badge = theme::makeBadge(role, theme::roleColor(role));
+    auto* online_badge = theme::makeBadge(
+        QObject::tr("online %1").arg(e.onlineCount), QColor("#2e7d32"));
+
+    auto* top = new QHBoxLayout;
+    top->setContentsMargins(0, 0, 0, 0);
+    top->addWidget(title);
+    top->addStretch();
+    top->addWidget(id_label);
+
+    auto* meta = new QHBoxLayout;
+    meta->setContentsMargins(0, 0, 0, 0);
+    meta->setSpacing(6);
+    meta->addWidget(role_badge);
+    meta->addWidget(online_badge);
+    meta->addStretch();
+
+    auto* v = new QVBoxLayout(card);
+    v->setContentsMargins(12, 10, 12, 10);
+    v->setSpacing(6);
+    v->addLayout(top);
+    v->addLayout(meta);
+
+    return card;
 }
 
 }
@@ -33,30 +67,48 @@ QString format_entry(const server::DocListEntry& e) {
 DocumentListWindow::DocumentListWindow(NetworkManager* nm, QWidget* parent)
     : QMainWindow(parent), nm_(nm) {
     setWindowTitle(tr("Documents — %1").arg(nm_->username()));
-    resize(640, 480);
+    resize(720, 560);
 
     auto* central = new QWidget(this);
     setCentralWidget(central);
 
+    auto* header = new QLabel(tr("Your documents"));
+    header->setObjectName("h1");
+    auto* subheader = new QLabel(tr("Signed in as %1").arg(nm_->username()));
+    subheader->setObjectName("subtitle");
+
     list_ = new QListWidget;
-    new_btn_ = new QPushButton(tr("New"));
+    list_->setSpacing(0);
+    list_->setSelectionMode(QAbstractItemView::SingleSelection);
+    list_->setUniformItemSizes(false);
+
+    new_btn_ = new QPushButton(tr("New document"));
+    new_btn_->setObjectName("primary");
     open_btn_ = new QPushButton(tr("Open"));
     delete_btn_ = new QPushButton(tr("Delete"));
+    delete_btn_->setObjectName("danger");
     share_btn_ = new QPushButton(tr("Share"));
     refresh_btn_ = new QPushButton(tr("Refresh"));
     status_ = new QLabel(tr("Loading…"));
+    status_->setObjectName("muted");
 
     auto* buttons = new QHBoxLayout;
+    buttons->setSpacing(8);
     buttons->addWidget(new_btn_);
     buttons->addWidget(open_btn_);
-    buttons->addWidget(delete_btn_);
     buttons->addWidget(share_btn_);
-    buttons->addWidget(refresh_btn_);
+    buttons->addWidget(delete_btn_);
     buttons->addStretch();
+    buttons->addWidget(refresh_btn_);
 
     auto* root = new QVBoxLayout(central);
-    root->addWidget(list_);
+    root->setContentsMargins(20, 18, 20, 16);
+    root->setSpacing(10);
+    root->addWidget(header);
+    root->addWidget(subheader);
+    root->addSpacing(4);
     root->addLayout(buttons);
+    root->addWidget(list_, 1);
     root->addWidget(status_);
 
     connect(new_btn_, &QPushButton::clicked, this, &DocumentListWindow::onNewClicked);
@@ -212,11 +264,16 @@ void DocumentListWindow::onMessageReceived(QByteArray payload) {
 void DocumentListWindow::applyDocList(const server::DocListResponseMsg& msg) {
     list_->clear();
     for (const auto& entry : msg.documents) {
-        auto* item = new QListWidgetItem(format_entry(entry));
+        auto* item = new QListWidgetItem;
         item->setData(Qt::UserRole, entry.docId);
+        auto* card = make_card(entry);
+        item->setSizeHint(card->sizeHint());
         list_->addItem(item);
+        list_->setItemWidget(item, card);
     }
-    status_->setText(tr("%1 document(s).").arg(msg.documents.size()));
+    status_->setText(msg.documents.empty()
+                         ? tr("No documents yet. Create your first one.")
+                         : tr("%1 document(s).").arg(msg.documents.size()));
 }
 
 }

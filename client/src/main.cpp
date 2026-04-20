@@ -3,11 +3,13 @@
 #include "client/editor_window.h"
 #include "client/logging.h"
 #include "client/network_manager.h"
+#include "client/theme.h"
 
 #include <QApplication>
 #include <QCoreApplication>
 #include <QDialog>
 #include <QLoggingCategory>
+#include <QStyleFactory>
 
 #include <memory>
 
@@ -15,6 +17,8 @@ int main(int argc, char** argv) {
     QApplication app(argc, argv);
     QCoreApplication::setOrganizationName("collab");
     QCoreApplication::setApplicationName("collab-client");
+    QApplication::setStyle(QStyleFactory::create("Fusion"));
+    app.setStyleSheet(collab_client::theme::stylesheet());
 
     if (qEnvironmentVariableIsEmpty("QT_LOGGING_RULES")) {
         QLoggingCategory::setFilterRules(QStringLiteral(
