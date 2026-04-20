@@ -185,6 +185,9 @@ void MessageHandler::handle_doc_join(std::shared_ptr<ClientSession> session,
         .content = content, .revision = revision,
         .role = role_str, .users = users}));
 
+    logger_.info(std::format("User '{}' joined doc {} as {} (rev={})",
+                             session->username(), msg.docId, role_str, revision));
+
     DocCommand cmd;
     cmd.type = DocCommand::Type::Join;
     cmd.userId = session->user_id();
@@ -207,6 +210,8 @@ void MessageHandler::handle_doc_leave(std::shared_ptr<ClientSession> session,
         doc_session->enqueue_command(std::move(cmd));
     }
 
+    logger_.info(std::format("User '{}' left doc {}",
+                             session->username(), msg.docId));
     session->set_current_doc(0);
     session->send(serialize(DocLeaveResponseMsg{true}));
 }
@@ -271,6 +276,10 @@ void MessageHandler::handle_doc_share(std::shared_ptr<ClientSession> session,
 
     session->send(serialize(DocShareResponseMsg{true}));
 
+    logger_.info(std::format("User '{}' set role={} on doc {} for user '{}'",
+                             session->username(), msg.role, msg.docId,
+                             msg.targetUsername));
+
     auto target_session = tcp_server_.find_session_by_user_id(*target_id);
     if (target_session && target_session->current_doc_id() == msg.docId) {
         target_session->send(serialize(RoleChangedMsg{msg.docId, msg.role}));
@@ -311,10 +320,16 @@ void MessageHandler::handle_operation(std::shared_ptr<ClientSession> session,
             cmd.operation = collab::make_insert(
                 op_entry.pos, op_entry.text,
                 session->user_id(), msg.revision);
+            logger_.debug(std::format("op insert doc={} user='{}' pos={} len={} rev={}",
+                                       msg.docId, session->username(),
+                                       op_entry.pos, op_entry.text.size(), msg.revision));
         } else {
             cmd.operation = collab::make_delete(
                 op_entry.pos, op_entry.len, "",
                 session->user_id(), msg.revision);
+            logger_.debug(std::format("op delete doc={} user='{}' pos={} len={} rev={}",
+                                       msg.docId, session->username(),
+                                       op_entry.pos, op_entry.len, msg.revision));
         }
         cmd.userId = session->user_id();
         cmd.username = session->username();
@@ -342,6 +357,8 @@ void MessageHandler::handle_cursor_update(std::shared_ptr<ClientSession> session
     state.selectionEnd = msg.selectionEnd;
 
     doc_manager_.update_cursor(msg.docId, std::move(state));
+    logger_.debug(std::format("cursor user='{}' doc={} pos={}",
+                              session->username(), msg.docId, msg.position));
 }
 
 void MessageHandler::send_error(std::shared_ptr<ClientSession> session,
