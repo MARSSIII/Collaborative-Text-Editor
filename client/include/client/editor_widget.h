@@ -49,7 +49,19 @@ private:
         std::optional<double> display_sel_end;
     };
 
+    struct DisplayedPositions {
+        uint32_t position;
+        std::optional<uint32_t> selectionStart;
+        std::optional<uint32_t> selectionEnd;
+    };
+
     void tickCursorAnimation();
+    DisplayedPositions displayedPositionsFor(const RemoteCursor& rc) const;
+    void paintSelectionBand(QPainter& painter, const QByteArray& utf8,
+                            uint32_t start_utf8, uint32_t end_utf8,
+                            const QColor& color);
+    void paintCaretAndLabel(QPainter& painter, const QRect& caret,
+                            const RemoteCursor& rc, const QFontMetrics& fm);
 
     uint32_t user_id_ = 0;
     uint32_t current_revision_ = 0;

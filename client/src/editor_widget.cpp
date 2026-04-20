@@ -158,70 +158,96 @@ void EditorWidget::paintEvent(QPaintEvent* event) {
     const int label_height = fm.height();
 
     for (const auto& rc : remote_cursors_) {
-        auto anim_it = cursor_anim_.find(rc.userId);
-        const uint32_t disp_pos = anim_it != cursor_anim_.end()
-            ? static_cast<uint32_t>(std::lround(anim_it->second.display_position))
-            : rc.position;
-        std::optional<uint32_t> disp_sel_start, disp_sel_end;
-        if (rc.selectionStart) {
-            disp_sel_start = anim_it != cursor_anim_.end() && anim_it->second.display_sel_start
-                ? static_cast<uint32_t>(std::lround(*anim_it->second.display_sel_start))
-                : *rc.selectionStart;
-        }
-        if (rc.selectionEnd) {
-            disp_sel_end = anim_it != cursor_anim_.end() && anim_it->second.display_sel_end
-                ? static_cast<uint32_t>(std::lround(*anim_it->second.display_sel_end))
-                : *rc.selectionEnd;
-        }
+        const auto disp = displayedPositionsFor(rc);
 
-        const int utf16_pos = utf8_codec::utf8_to_utf16_offset(utf8, disp_pos);
+        const int utf16_pos = utf8_codec::utf8_to_utf16_offset(utf8, disp.position);
         QTextCursor tc(document());
         tc.setPosition(std::clamp(utf16_pos, 0, document()->characterCount() - 1));
         const QRect caret = cursorRect(tc);
-        if (!event->rect().intersects(caret.adjusted(-2, -label_height - 2, 2, 2))) {
-            if (!disp_sel_start || !disp_sel_end) continue;
+
+        const bool caret_visible = event->rect().intersects(
+            caret.adjusted(-2, -label_height - 2, 2, 2));
+        const bool has_selection = disp.selectionStart && disp.selectionEnd
+            && *disp.selectionStart != *disp.selectionEnd;
+        if (!caret_visible && !has_selection) continue;
+
+        if (has_selection) {
+            const uint32_t s8 = std::min(*disp.selectionStart, *disp.selectionEnd);
+            const uint32_t e8 = std::max(*disp.selectionStart, *disp.selectionEnd);
+            paintSelectionBand(painter, utf8, s8, e8, rc.color);
         }
-
-        if (disp_sel_start && disp_sel_end && *disp_sel_start != *disp_sel_end) {
-            const uint32_t s8 = std::min(*disp_sel_start, *disp_sel_end);
-            const uint32_t e8 = std::max(*disp_sel_start, *disp_sel_end);
-            const int s16 = utf8_codec::utf8_to_utf16_offset(utf8, s8);
-            const int e16 = utf8_codec::utf8_to_utf16_offset(utf8, e8);
-            QTextCursor sc(document());
-            sc.setPosition(s16);
-            sc.setPosition(e16, QTextCursor::KeepAnchor);
-            QColor fill = rc.color;
-            fill.setAlpha(60);
-            painter.setPen(Qt::NoPen);
-            painter.setBrush(fill);
-            auto block = document()->findBlock(s16);
-            int cursor_in_block = s16;
-            while (block.isValid() && cursor_in_block < e16) {
-                const int block_end = std::min<int>(block.position() + block.length() - 1, e16);
-                QTextCursor a(document()); a.setPosition(cursor_in_block);
-                QTextCursor b(document()); b.setPosition(block_end);
-                QRect ra = cursorRect(a);
-                QRect rb = cursorRect(b);
-                QRect band(ra.left(), ra.top(), std::max(2, rb.right() - ra.left()), ra.height());
-                painter.drawRect(band);
-                cursor_in_block = block_end + 1;
-                block = block.next();
-            }
-        }
-
-        painter.setPen(QPen(rc.color, 2));
-        painter.drawLine(caret.topLeft(), caret.bottomLeft());
-
-        const QString label = rc.username;
-        const int label_w = fm.horizontalAdvance(label) + 6;
-        QRect label_rect(caret.left(), caret.top() - label_height - 1, label_w, label_height);
-        if (label_rect.top() < 0) label_rect.moveTop(caret.bottom() + 1);
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(rc.color);
-        painter.drawRect(label_rect);
-        painter.setPen(Qt::white);
-        painter.drawText(label_rect.adjusted(3, 0, -3, 0), Qt::AlignVCenter | Qt::AlignLeft, label);
+        if (caret_visible) paintCaretAndLabel(painter, caret, rc, fm);
     }
+}
+
+EditorWidget::DisplayedPositions
+EditorWidget::displayedPositionsFor(const RemoteCursor& rc) const {
+    auto it = cursor_anim_.find(rc.userId);
+    const bool animated = it != cursor_anim_.end();
+
+    auto pick = [&](double anim_val, uint32_t fallback) {
+        return animated ? static_cast<uint32_t>(std::lround(anim_val)) : fallback;
+    };
+
+    DisplayedPositions out;
+    out.position = pick(animated ? it->second.display_position : 0.0, rc.position);
+    if (rc.selectionStart) {
+        const bool a = animated && it->second.display_sel_start.has_value();
+        out.selectionStart = a ? static_cast<uint32_t>(std::lround(*it->second.display_sel_start))
+                               : *rc.selectionStart;
+    }
+    if (rc.selectionEnd) {
+        const bool a = animated && it->second.display_sel_end.has_value();
+        out.selectionEnd = a ? static_cast<uint32_t>(std::lround(*it->second.display_sel_end))
+                             : *rc.selectionEnd;
+    }
+    return out;
+}
+
+void EditorWidget::paintSelectionBand(QPainter& painter, const QByteArray& utf8,
+                                      uint32_t start_utf8, uint32_t end_utf8,
+                                      const QColor& color) {
+    const int s16 = utf8_codec::utf8_to_utf16_offset(utf8, start_utf8);
+    const int e16 = utf8_codec::utf8_to_utf16_offset(utf8, end_utf8);
+
+    QColor fill = color;
+    fill.setAlpha(60);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(fill);
+
+    auto block = document()->findBlock(s16);
+    int cursor_in_block = s16;
+    while (block.isValid() && cursor_in_block < e16) {
+        const int block_end = std::min<int>(block.position() + block.length() - 1, e16);
+        QTextCursor a(document()); a.setPosition(cursor_in_block);
+        QTextCursor b(document()); b.setPosition(block_end);
+        const QRect ra = cursorRect(a);
+        const QRect rb = cursorRect(b);
+        const QRect band(ra.left(), ra.top(),
+                         std::max(2, rb.right() - ra.left()), ra.height());
+        painter.drawRect(band);
+        cursor_in_block = block_end + 1;
+        block = block.next();
+    }
+}
+
+void EditorWidget::paintCaretAndLabel(QPainter& painter, const QRect& caret,
+                                      const RemoteCursor& rc,
+                                      const QFontMetrics& fm) {
+    painter.setPen(QPen(rc.color, 2));
+    painter.drawLine(caret.topLeft(), caret.bottomLeft());
+
+    const int label_height = fm.height();
+    const int label_w = fm.horizontalAdvance(rc.username) + 6;
+    QRect label_rect(caret.left(), caret.top() - label_height - 1, label_w, label_height);
+    if (label_rect.top() < 0) label_rect.moveTop(caret.bottom() + 1);
+
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(rc.color);
+    painter.drawRect(label_rect);
+    painter.setPen(Qt::white);
+    painter.drawText(label_rect.adjusted(3, 0, -3, 0),
+                     Qt::AlignVCenter | Qt::AlignLeft, rc.username);
 }
 
 void EditorWidget::onContentsChange(int position, int charsRemoved, int charsAdded) {

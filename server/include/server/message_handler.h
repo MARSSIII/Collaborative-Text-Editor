@@ -56,8 +56,6 @@ private:
     void send_error(std::shared_ptr<ClientSession> session,
                     const std::string& code, const std::string& message);
 
-    static std::string generate_color(uint32_t userId);
-
     collab::AuthManager& auth_;
     collab::AccessControl& access_;
     DocumentManager& doc_manager_;

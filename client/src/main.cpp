@@ -13,8 +13,9 @@
 
 #include <memory>
 
-int main(int argc, char** argv) {
-    QApplication app(argc, argv);
+namespace {
+
+void configureApplication(QApplication& app) {
     QCoreApplication::setOrganizationName("collab");
     QCoreApplication::setApplicationName("collab-client");
     QApplication::setStyle(QStyleFactory::create("Fusion"));
@@ -27,6 +28,27 @@ int main(int argc, char** argv) {
             "collab.*.critical=true\n"
             "collab.*.debug=false"));
     }
+}
+
+void openEditor(collab_client::NetworkManager* nm,
+                collab_client::DocumentListWindow* docs,
+                const server::DocJoinResponseMsg& resp) {
+    auto* editor = new collab_client::EditorWindow(nm, resp);
+    editor->setAttribute(Qt::WA_DeleteOnClose);
+    QObject::connect(editor, &collab_client::EditorWindow::leftDocument,
+                     docs, [docs]() {
+                         docs->show();
+                         docs->refresh();
+                     });
+    docs->hide();
+    editor->show();
+}
+
+}
+
+int main(int argc, char** argv) {
+    QApplication app(argc, argv);
+    configureApplication(app);
 
     auto nm_holder = std::make_unique<collab_client::NetworkManager>();
     auto* nm = nm_holder.get();
@@ -45,19 +67,10 @@ int main(int argc, char** argv) {
     docs->setAttribute(Qt::WA_DeleteOnClose);
 
     QObject::connect(docs, &QObject::destroyed, &app, &QApplication::quit);
-
     QObject::connect(docs, &collab_client::DocumentListWindow::documentJoined,
                      [nm, docs](const server::DocJoinResponseMsg& resp) {
-        auto* editor = new collab_client::EditorWindow(nm, resp);
-        editor->setAttribute(Qt::WA_DeleteOnClose);
-        QObject::connect(editor, &collab_client::EditorWindow::leftDocument,
-                         docs, [docs]() {
-                             docs->show();
-                             docs->refresh();
-                         });
-        docs->hide();
-        editor->show();
-    });
+                         openEditor(nm, docs, resp);
+                     });
 
     docs->show();
     return app.exec();

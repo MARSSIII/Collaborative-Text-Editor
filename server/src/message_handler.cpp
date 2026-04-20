@@ -10,6 +10,33 @@
 
 namespace server {
 
+namespace {
+
+std::string generate_color(uint32_t userId) {
+    constexpr double golden = 0.618033988749895;
+    const double hue = std::fmod(userId * golden, 1.0);
+    constexpr double s = 0.7, l = 0.5;
+
+    const double q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const double p = 2 * l - q;
+
+    auto hue2rgb = [&](double t) {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1.0 / 6) return p + (q - p) * 6 * t;
+        if (t < 1.0 / 2) return q;
+        if (t < 2.0 / 3) return p + (q - p) * (2.0 / 3 - t) * 6;
+        return p;
+    };
+
+    const int r = static_cast<int>(hue2rgb(hue + 1.0 / 3) * 255);
+    const int g = static_cast<int>(hue2rgb(hue) * 255);
+    const int b = static_cast<int>(hue2rgb(hue - 1.0 / 3) * 255);
+    return std::format("#{:02X}{:02X}{:02X}", r, g, b);
+}
+
+}
+
 MessageHandler::MessageHandler(collab::AuthManager& auth,
                                collab::AccessControl& access,
                                DocumentManager& doc_manager,
@@ -313,24 +340,21 @@ void MessageHandler::handle_operation(std::shared_ptr<ClientSession> session,
         return;
     }
 
-    for (auto& op_entry : msg.ops) {
+    for (const auto& op_entry : msg.ops) {
+        const bool is_insert = (op_entry.op == "insert");
+        const auto op = is_insert
+            ? collab::make_insert(op_entry.pos, op_entry.text,
+                                  session->user_id(), msg.revision)
+            : collab::make_delete(op_entry.pos, op_entry.len, "",
+                                  session->user_id(), msg.revision);
+        const size_t len = is_insert ? op_entry.text.size() : op_entry.len;
+        logger_.debug(std::format("op {} doc={} user='{}' pos={} len={} rev={}",
+                                  op_entry.op, msg.docId, session->username(),
+                                  op_entry.pos, len, msg.revision));
+
         DocCommand cmd;
         cmd.type = DocCommand::Type::Operation;
-        if (op_entry.op == "insert") {
-            cmd.operation = collab::make_insert(
-                op_entry.pos, op_entry.text,
-                session->user_id(), msg.revision);
-            logger_.debug(std::format("op insert doc={} user='{}' pos={} len={} rev={}",
-                                       msg.docId, session->username(),
-                                       op_entry.pos, op_entry.text.size(), msg.revision));
-        } else {
-            cmd.operation = collab::make_delete(
-                op_entry.pos, op_entry.len, "",
-                session->user_id(), msg.revision);
-            logger_.debug(std::format("op delete doc={} user='{}' pos={} len={} rev={}",
-                                       msg.docId, session->username(),
-                                       op_entry.pos, op_entry.len, msg.revision));
-        }
+        cmd.operation = op;
         cmd.userId = session->user_id();
         cmd.username = session->username();
         doc_session->enqueue_command(std::move(cmd));
@@ -370,31 +394,6 @@ void MessageHandler::send_error(std::shared_ptr<ClientSession> session,
                                   session->session_id()));
         session->close();
     }
-}
-
-std::string MessageHandler::generate_color(uint32_t userId) {
-    constexpr double golden = 0.618033988749895;
-    double hue = std::fmod(userId * golden, 1.0) * 360.0;
-    double s = 0.7, l = 0.5;
-
-    auto hue2rgb = [](double p, double q, double t) -> double {
-        if (t < 0) t += 1;
-        if (t > 1) t -= 1;
-        if (t < 1.0/6) return p + (q - p) * 6 * t;
-        if (t < 1.0/2) return q;
-        if (t < 2.0/3) return p + (q - p) * (2.0/3 - t) * 6;
-        return p;
-    };
-
-    double q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-    double p = 2 * l - q;
-    double h = hue / 360.0;
-
-    int r = static_cast<int>(hue2rgb(p, q, h + 1.0/3) * 255);
-    int g = static_cast<int>(hue2rgb(p, q, h) * 255);
-    int b = static_cast<int>(hue2rgb(p, q, h - 1.0/3) * 255);
-
-    return std::format("#{:02X}{:02X}{:02X}", r, g, b);
 }
 
 }

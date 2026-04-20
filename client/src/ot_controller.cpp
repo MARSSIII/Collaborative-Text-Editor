@@ -33,6 +33,16 @@ collab::Operation from_entry(const server::OpEntry& entry,
     return collab::make_delete(entry.pos, entry.len, "", userId, revision);
 }
 
+template <typename T>
+std::optional<T> parse_as(const QByteArray& payload) {
+    try {
+        return nlohmann::json::parse(payload.constData(),
+                                     payload.constData() + payload.size()).get<T>();
+    } catch (const nlohmann::json::exception&) {
+        return std::nullopt;
+    }
+}
+
 }
 
 OTController::OTController(NetworkManager* nm,
@@ -71,30 +81,18 @@ void OTController::onLocalOperations(std::vector<collab::Operation> ops) {
 }
 
 void OTController::onNetworkMessage(QByteArray payload) {
-    auto env = parse_envelope(payload);
-    switch (env.type) {
-    case server::MessageType::OperationAck: {
-        try {
-            auto msg = nlohmann::json::parse(payload.constData(),
-                                             payload.constData() + payload.size())
-                           .get<server::OperationAckMsg>();
-            if (msg.docId == doc_id_) handleAck(msg);
-        } catch (const nlohmann::json::exception&) {}
+    switch (parse_envelope(payload).type) {
+    case server::MessageType::OperationAck:
+        if (auto msg = parse_as<server::OperationAckMsg>(payload);
+            msg && msg->docId == doc_id_) handleAck(*msg);
         break;
-    }
-    case server::MessageType::OperationBroadcast: {
-        try {
-            auto msg = nlohmann::json::parse(payload.constData(),
-                                             payload.constData() + payload.size())
-                           .get<server::OperationBroadcastMsg>();
-            if (msg.docId == doc_id_) handleBroadcast(msg);
-        } catch (const nlohmann::json::exception&) {}
+    case server::MessageType::OperationBroadcast:
+        if (auto msg = parse_as<server::OperationBroadcastMsg>(payload);
+            msg && msg->docId == doc_id_) handleBroadcast(*msg);
         break;
-    }
-    case server::MessageType::Error: {
+    case server::MessageType::Error:
         if (auto err = parse_error(payload)) handleError(*err);
         break;
-    }
     default:
         break;
     }
