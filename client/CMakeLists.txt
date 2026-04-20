@@ -7,7 +7,9 @@ find_package(Qt5 5.15 REQUIRED COMPONENTS Widgets Network Test)
 add_library(collab_client_lib STATIC
     src/network_manager.cpp
     src/protocol_codec.cpp
+    src/connection_dialog.cpp
     include/client/network_manager.h
+    include/client/connection_dialog.h
 )
 
 set_target_properties(collab_client_lib PROPERTIES
@@ -25,6 +27,7 @@ target_link_libraries(collab_client_lib PUBLIC
     collab::protocol
     Qt5::Core
     Qt5::Network
+    Qt5::Widgets
 )
 
 target_compile_features(collab_client_lib PUBLIC cxx_std_20)

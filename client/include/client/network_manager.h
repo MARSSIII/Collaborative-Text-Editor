@@ -4,6 +4,9 @@
 #include <QObject>
 #include <QString>
 
+#include <QMutex>
+
+#include <atomic>
 #include <cstdint>
 
 class QTcpSocket;
@@ -25,6 +28,12 @@ public:
 
     // Starts the internal QThread. Must be called before issuing any connect/send.
     void start();
+
+    // Populated by ConnectionDialog on successful auth. Safe to read from any
+    // thread (GUI/Network/OTController).
+    uint32_t userId() const noexcept { return user_id_.load(std::memory_order_acquire); }
+    QString username() const;
+    void setIdentity(uint32_t userId, const QString& username);
 
 signals:
     void connected();
@@ -51,6 +60,10 @@ private:
     QThread* thread_ = nullptr;
     QTcpSocket* socket_ = nullptr;
     QByteArray rx_buffer_;
+
+    std::atomic<uint32_t> user_id_{0};
+    mutable QMutex identity_mutex_;
+    QString username_;
 };
 
 } // namespace collab_client

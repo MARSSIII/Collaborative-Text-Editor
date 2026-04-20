@@ -1,40 +1,27 @@
+#include "client/connection_dialog.h"
 #include "client/network_manager.h"
-#include "client/protocol_codec.h"
-#include "collab_protocol/protocol.h"
 
 #include <QApplication>
-#include <QLabel>
+#include <QCoreApplication>
 #include <QDebug>
+#include <QDialog>
 
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
+    QCoreApplication::setOrganizationName("collab");
+    QCoreApplication::setApplicationName("collab-client");
 
-    QLabel label("Collaborative Text Editor — Qt5 client (Phase 1 skeleton)");
-    label.setMinimumSize(520, 120);
-    label.setAlignment(Qt::AlignCenter);
-    label.show();
-
-    // Smoke-test wiring of NetworkManager — not interactive yet. A real login
-    // flow arrives with ConnectionDialog in Phase 2.
     auto* nm = new collab_client::NetworkManager(&app);
-    QObject::connect(nm, &collab_client::NetworkManager::connected, [] {
-        qInfo() << "[net] connected";
-    });
-    QObject::connect(nm, &collab_client::NetworkManager::disconnected,
-                     [](const QString& reason) {
-        qInfo() << "[net] disconnected:" << reason;
-    });
-    QObject::connect(nm, &collab_client::NetworkManager::errorOccurred,
-                     [](const QString& msg) {
-        qWarning() << "[net] error:" << msg;
-    });
-    QObject::connect(nm, &collab_client::NetworkManager::messageReceived,
-                     [](const QByteArray& payload) {
-        auto env = collab_client::parse_envelope(payload);
-        qInfo() << "[net] message type=" << static_cast<int>(env.type)
-                << " payload=" << payload;
-    });
     nm->start();
 
+    collab_client::ConnectionDialog dialog(nm);
+    if (dialog.exec() != QDialog::Accepted) {
+        return 0;
+    }
+
+    qInfo() << "[auth] logged in as" << nm->username()
+            << "userId=" << nm->userId();
+
+    // Phase 3+ will replace this stub with DocumentListWindow.
     return app.exec();
 }

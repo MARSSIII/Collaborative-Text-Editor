@@ -4,6 +4,7 @@
 
 #include <QAbstractSocket>
 #include <QMetaObject>
+#include <QMutexLocker>
 #include <QTcpSocket>
 #include <QThread>
 
@@ -11,6 +12,19 @@ namespace collab_client {
 
 NetworkManager::NetworkManager(QObject* parent)
     : QObject(parent), thread_(new QThread) {}
+
+QString NetworkManager::username() const {
+    QMutexLocker lock(&identity_mutex_);
+    return username_;
+}
+
+void NetworkManager::setIdentity(uint32_t userId, const QString& username) {
+    {
+        QMutexLocker lock(&identity_mutex_);
+        username_ = username;
+    }
+    user_id_.store(userId, std::memory_order_release);
+}
 
 NetworkManager::~NetworkManager() {
     if (thread_) {
