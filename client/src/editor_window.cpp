@@ -9,12 +9,16 @@
 #include "client/status_bar_widget.h"
 #include "client/user_panel_widget.h"
 
+#include <QAction>
 #include <QCloseEvent>
 #include <QDockWidget>
+#include <QInputDialog>
+#include <QLineEdit>
 #include <QMessageBox>
 #include <QMetaObject>
 #include <QTextCursor>
 #include <QTimer>
+#include <QToolBar>
 
 #include <nlohmann/json.hpp>
 
@@ -68,6 +72,12 @@ EditorWindow::EditorWindow(NetworkManager* nm,
     dock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
     dock->setWidget(user_panel_);
     addDockWidget(Qt::RightDockWidgetArea, dock);
+
+    auto* toolbar = addToolBar(tr("Document"));
+    toolbar->setMovable(false);
+    auto* share_action = toolbar->addAction(tr("Share"));
+    share_action->setShortcut(QKeySequence("Ctrl+Shift+S"));
+    connect(share_action, &QAction::triggered, this, &EditorWindow::onShareClicked);
 
     status_ = new StatusBarWidget(this);
     setStatusBar(status_);
@@ -196,6 +206,19 @@ void EditorWindow::onRevisionChanged(uint32_t revision) {
 void EditorWindow::onFatalError(QString message) {
     QMessageBox::critical(this, tr("Document error"), message);
     close();
+}
+
+void EditorWindow::onShareClicked() {
+    bool ok = false;
+    auto target = QInputDialog::getText(this, tr("Share document"),
+                                        tr("Grant editor access to username:"),
+                                        QLineEdit::Normal, QString(), &ok).trimmed();
+    if (!ok || target.isEmpty()) return;
+
+    QMetaObject::invokeMethod(nm_, "sendFrame", Qt::QueuedConnection,
+                              Q_ARG(QByteArray,
+                                    encode_doc_share_request(doc_id_, target, "editor")));
+    status_->showMessage(tr("Shared with %1").arg(target), 2500);
 }
 
 } // namespace collab_client

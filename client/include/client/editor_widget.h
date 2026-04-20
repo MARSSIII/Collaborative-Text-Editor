@@ -8,8 +8,11 @@
 
 #include <cstdint>
 #include <optional>
+#include <unordered_map>
 #include <utility>
 #include <vector>
+
+class QTimer;
 
 namespace collab_client {
 
@@ -40,11 +43,21 @@ private slots:
     void onContentsChange(int position, int charsRemoved, int charsAdded);
 
 private:
+    struct CursorAnim {
+        double display_position = 0.0;
+        std::optional<double> display_sel_start;
+        std::optional<double> display_sel_end;
+    };
+
+    void tickCursorAnimation();
+
     uint32_t user_id_ = 0;
     uint32_t current_revision_ = 0;
     bool applying_remote_ = false;
     QString last_known_text_;
     std::vector<RemoteCursor> remote_cursors_;
+    std::unordered_map<uint32_t, CursorAnim> cursor_anim_;
+    QTimer* cursor_anim_timer_ = nullptr;
 };
 
 } // namespace collab_client

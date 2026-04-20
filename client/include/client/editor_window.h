@@ -44,6 +44,7 @@ private slots:
     void onCursorBroadcastTimeout();
     void onRemoteCursorsChanged();
     void onRemoteOperationApplied(const collab::Operation& op);
+    void onShareClicked();
 
 private:
     void scheduleCursorBroadcast();

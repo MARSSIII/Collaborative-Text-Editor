@@ -10,14 +10,20 @@
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
+#include <QTimer>
 
 #include <algorithm>
+#include <cmath>
 
 namespace collab_client {
 
 EditorWidget::EditorWidget(QWidget* parent) : QPlainTextEdit(parent) {
     connect(document(), &QTextDocument::contentsChange,
             this, &EditorWidget::onContentsChange);
+    cursor_anim_timer_ = new QTimer(this);
+    cursor_anim_timer_->setInterval(16);
+    connect(cursor_anim_timer_, &QTimer::timeout,
+            this, &EditorWidget::tickCursorAnimation);
 }
 
 void EditorWidget::resetContent(const QString& content) {
@@ -76,7 +82,57 @@ void EditorWidget::applyRemoteOperation(const collab::Operation& op) {
 
 void EditorWidget::setRemoteCursors(std::vector<RemoteCursor> cursors) {
     remote_cursors_ = std::move(cursors);
+    std::unordered_map<uint32_t, CursorAnim> next;
+    next.reserve(remote_cursors_.size());
+    for (const auto& rc : remote_cursors_) {
+        auto it = cursor_anim_.find(rc.userId);
+        if (it == cursor_anim_.end()) {
+            CursorAnim a;
+            a.display_position = static_cast<double>(rc.position);
+            if (rc.selectionStart) a.display_sel_start = static_cast<double>(*rc.selectionStart);
+            if (rc.selectionEnd) a.display_sel_end = static_cast<double>(*rc.selectionEnd);
+            next.emplace(rc.userId, a);
+        } else {
+            next.emplace(rc.userId, it->second);
+        }
+    }
+    cursor_anim_ = std::move(next);
+    if (!cursor_anim_timer_->isActive() && !remote_cursors_.empty()) cursor_anim_timer_->start();
     viewport()->update();
+}
+
+void EditorWidget::tickCursorAnimation() {
+    if (remote_cursors_.empty()) { cursor_anim_timer_->stop(); return; }
+    constexpr double kEase = 0.28;
+    constexpr double kSnap = 0.5;
+    bool any_moving = false;
+
+    auto step = [&](double& disp, double target) {
+        const double diff = target - disp;
+        if (std::abs(diff) < kSnap) { disp = target; return; }
+        disp += diff * kEase;
+        any_moving = true;
+    };
+
+    for (const auto& rc : remote_cursors_) {
+        auto& a = cursor_anim_[rc.userId];
+        step(a.display_position, static_cast<double>(rc.position));
+        if (rc.selectionStart) {
+            if (!a.display_sel_start) a.display_sel_start = static_cast<double>(*rc.selectionStart);
+            step(*a.display_sel_start, static_cast<double>(*rc.selectionStart));
+        } else {
+            a.display_sel_start.reset();
+        }
+        if (rc.selectionEnd) {
+            if (!a.display_sel_end) a.display_sel_end = static_cast<double>(*rc.selectionEnd);
+            step(*a.display_sel_end, static_cast<double>(*rc.selectionEnd));
+        } else {
+            a.display_sel_end.reset();
+        }
+    }
+
+    viewport()->update();
+    if (!any_moving) cursor_anim_timer_->stop();
 }
 
 uint32_t EditorWidget::localCursorUtf8Position() const {
@@ -102,17 +158,33 @@ void EditorWidget::paintEvent(QPaintEvent* event) {
     const int label_height = fm.height();
 
     for (const auto& rc : remote_cursors_) {
-        const int utf16_pos = utf8_codec::utf8_to_utf16_offset(utf8, rc.position);
+        auto anim_it = cursor_anim_.find(rc.userId);
+        const uint32_t disp_pos = anim_it != cursor_anim_.end()
+            ? static_cast<uint32_t>(std::lround(anim_it->second.display_position))
+            : rc.position;
+        std::optional<uint32_t> disp_sel_start, disp_sel_end;
+        if (rc.selectionStart) {
+            disp_sel_start = anim_it != cursor_anim_.end() && anim_it->second.display_sel_start
+                ? static_cast<uint32_t>(std::lround(*anim_it->second.display_sel_start))
+                : *rc.selectionStart;
+        }
+        if (rc.selectionEnd) {
+            disp_sel_end = anim_it != cursor_anim_.end() && anim_it->second.display_sel_end
+                ? static_cast<uint32_t>(std::lround(*anim_it->second.display_sel_end))
+                : *rc.selectionEnd;
+        }
+
+        const int utf16_pos = utf8_codec::utf8_to_utf16_offset(utf8, disp_pos);
         QTextCursor tc(document());
         tc.setPosition(std::clamp(utf16_pos, 0, document()->characterCount() - 1));
         const QRect caret = cursorRect(tc);
         if (!event->rect().intersects(caret.adjusted(-2, -label_height - 2, 2, 2))) {
-            if (!rc.selectionStart || !rc.selectionEnd) continue;
+            if (!disp_sel_start || !disp_sel_end) continue;
         }
 
-        if (rc.selectionStart && rc.selectionEnd && *rc.selectionStart != *rc.selectionEnd) {
-            const uint32_t s8 = std::min(*rc.selectionStart, *rc.selectionEnd);
-            const uint32_t e8 = std::max(*rc.selectionStart, *rc.selectionEnd);
+        if (disp_sel_start && disp_sel_end && *disp_sel_start != *disp_sel_end) {
+            const uint32_t s8 = std::min(*disp_sel_start, *disp_sel_end);
+            const uint32_t e8 = std::max(*disp_sel_start, *disp_sel_end);
             const int s16 = utf8_codec::utf8_to_utf16_offset(utf8, s8);
             const int e16 = utf8_codec::utf8_to_utf16_offset(utf8, e8);
             QTextCursor sc(document());
