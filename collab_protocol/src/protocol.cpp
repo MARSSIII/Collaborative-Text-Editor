@@ -1,4 +1,4 @@
-#include "server/protocol.h"
+#include "collab_protocol/protocol.h"
 
 #include <stdexcept>
 #include <unordered_map>
@@ -118,6 +118,26 @@ void from_json(const nlohmann::json& j, CursorUpdateMsg& m) {
     }
     if (j.contains("selectionEnd") && !j["selectionEnd"].is_null()) {
         m.selectionEnd = j["selectionEnd"].get<uint32_t>();
+    }
+}
+
+// ============================================================
+// Client-side mirrors (C→S to_json, S→C from_json)
+// ============================================================
+
+void to_json(nlohmann::json& j, const AuthRequestMsg& m) {
+    j = {{"type", "auth_request"},
+         {"action", m.action},
+         {"username", m.username},
+         {"password", m.password}};
+}
+
+void from_json(const nlohmann::json& j, AuthResponseMsg& m) {
+    j.at("success").get_to(m.success);
+    if (m.success) {
+        j.at("userId").get_to(m.userId);
+    } else if (j.contains("error")) {
+        j.at("error").get_to(m.error);
     }
 }
 

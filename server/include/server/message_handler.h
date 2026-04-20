@@ -1,7 +1,7 @@
 #pragma once
 
 #include "server/tcp_server.h"
-#include "server/protocol.h"
+#include "collab_protocol/protocol.h"
 #include "server/async_logger.h"
 
 #include <memory>

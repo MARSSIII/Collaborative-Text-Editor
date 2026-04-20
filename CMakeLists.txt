@@ -44,6 +44,11 @@ endif()
 add_subdirectory(src)
 add_subdirectory(demo)
 
+if(nlohmann_json_FOUND)
+    add_subdirectory(collab_protocol)
+    message(STATUS "collab_protocol target enabled")
+endif()
+
 if(Boost_FOUND AND nlohmann_json_FOUND)
     add_subdirectory(server)
     message(STATUS "Server target enabled (Boost + nlohmann_json found)")

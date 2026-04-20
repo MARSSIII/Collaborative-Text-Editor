@@ -9,7 +9,7 @@
 #include "server/document_manager.h"
 #include "server/message_handler.h"
 #include "server/tcp_server.h"
-#include "server/protocol.h"
+#include "collab_protocol/protocol.h"
 
 #include <boost/asio.hpp>
 #include <gtest/gtest.h>

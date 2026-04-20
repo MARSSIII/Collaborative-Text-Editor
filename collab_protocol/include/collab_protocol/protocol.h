@@ -200,6 +200,11 @@ void from_json(const nlohmann::json& j, OpEntry& m);
 void from_json(const nlohmann::json& j, OperationMsg& m);
 void from_json(const nlohmann::json& j, CursorUpdateMsg& m);
 
+// Client-side mirrors: the server defines from_json for C→S and to_json for S→C.
+// The client needs the reverse pair on the same types.
+void to_json(nlohmann::json& j, const AuthRequestMsg& m);
+void from_json(const nlohmann::json& j, AuthResponseMsg& m);
+
 void to_json(nlohmann::json& j, const AuthResponseMsg& m);
 void to_json(nlohmann::json& j, const DocListEntry& m);
 void to_json(nlohmann::json& j, const DocListResponseMsg& m);

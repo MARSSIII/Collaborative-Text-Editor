@@ -1,6 +1,6 @@
 #pragma once
 
-#include "server/protocol.h"
+#include "collab_protocol/protocol.h"
 
 #include <boost/asio.hpp>
 #include <atomic>

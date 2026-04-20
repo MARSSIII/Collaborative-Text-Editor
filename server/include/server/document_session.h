@@ -5,7 +5,7 @@
 #include "collab/operation.h"
 #include "server/client_session.h"
 #include "server/async_logger.h"
-#include "server/protocol.h"
+#include "collab_protocol/protocol.h"
 
 #include <cstdint>
 #include <memory>

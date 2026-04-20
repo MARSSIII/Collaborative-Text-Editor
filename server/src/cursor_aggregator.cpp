@@ -1,5 +1,5 @@
 #include "server/cursor_aggregator.h"
-#include "server/protocol.h"
+#include "collab_protocol/protocol.h"
 
 #include <format>
 

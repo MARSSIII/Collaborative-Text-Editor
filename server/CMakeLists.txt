@@ -1,5 +1,4 @@
 add_library(server_lib STATIC
-    src/protocol.cpp
     src/server_config.cpp
     src/async_logger.cpp
     src/client_session.cpp
@@ -17,6 +16,7 @@ target_include_directories(server_lib PUBLIC
 
 target_link_libraries(server_lib PUBLIC
     collab::collab
+    collab::protocol
     Boost::boost
     nlohmann_json::nlohmann_json
 )
