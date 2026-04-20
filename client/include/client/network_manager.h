@@ -59,4 +59,4 @@ private:
     QString username_;
 };
 
-} // namespace collab_client
+}

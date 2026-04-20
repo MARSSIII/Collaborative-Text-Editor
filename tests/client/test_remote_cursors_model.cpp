@@ -16,7 +16,7 @@ server::CursorBroadcastMsg make_broadcast(uint32_t docId,
     return m;
 }
 
-} // namespace
+}
 
 TEST(RemoteCursorsModel, IgnoresLocalUser) {
     RemoteCursorsModel m(42);
@@ -49,7 +49,7 @@ TEST(RemoteCursorsModel, InsertBeforeShiftsCursorRight) {
     m.applyBroadcast(make_broadcast(1, {
         {2, "bob", "#00ff00", 10, std::nullopt, std::nullopt},
     }));
-    auto op = collab::make_insert(5, "XXX", /*uid*/ 2, /*rev*/ 0);
+    auto op = collab::make_insert(5, "XXX",  2,  0);
     m.applyRemoteOperation(op);
     auto out = m.cursors();
     ASSERT_EQ(out.size(), 1u);

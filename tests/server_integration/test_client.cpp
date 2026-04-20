@@ -80,7 +80,6 @@ std::optional<nlohmann::json> TestClient::recv_raw_(std::chrono::milliseconds ti
     bool read_complete = false;
     std::size_t got = 0;
 
-    // Ensure io_ is ready to run pending work.
     io_.restart();
 
     auto try_read_header = [&]() {
@@ -154,7 +153,6 @@ std::optional<nlohmann::json> TestClient::recv_raw_(std::chrono::milliseconds ti
 
 nlohmann::json TestClient::recv_until_type(const std::string& type,
                                            std::chrono::milliseconds total_timeout) {
-    // First: scan already-buffered messages for a match.
     for (auto it = pending_.begin(); it != pending_.end(); ++it) {
         if (it->value("type", "") == type) {
             auto msg = std::move(*it);
@@ -162,7 +160,6 @@ nlohmann::json TestClient::recv_until_type(const std::string& type,
             return msg;
         }
     }
-    // Then: read from socket, buffering non-matching messages for later recv().
     auto deadline = std::chrono::steady_clock::now() + total_timeout;
     while (std::chrono::steady_clock::now() < deadline) {
         auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -268,4 +265,4 @@ void TestClient::send_delete(uint32_t doc_id, uint32_t revision, uint32_t pos,
     });
 }
 
-} // namespace test
+}

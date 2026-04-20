@@ -56,7 +56,7 @@ protected:
         thread_pool_ = std::make_unique<collab::ThreadPool>(4);
 
         tcp_server_ = std::make_unique<server::TcpServer>(
-            *io_ctx_, /*port=*/0,
+            *io_ctx_, 0,
             [this](std::shared_ptr<server::ClientSession> session,
                    const std::string& payload) {
                 thread_pool_->submit([this, session, payload] {
@@ -88,7 +88,7 @@ protected:
 
         autosave_ = std::make_unique<server::AutosaveThread>(
             *doc_manager_, data_dir_.string(),
-            std::chrono::seconds(3600),  // effectively disabled during tests
+            std::chrono::seconds(3600),
             100, *logger_);
 
         tcp_server_->start();
@@ -97,7 +97,6 @@ protected:
 
         io_thread_ = std::thread([this] { io_ctx_->run(); });
 
-        // Tiny yield so async_accept is primed before tests connect.
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
 
@@ -111,7 +110,6 @@ protected:
             io_thread_.join();
         }
 
-        // Release in reverse order of construction.
         autosave_.reset();
         cursor_agg_.reset();
         handler_.reset();
@@ -129,8 +127,6 @@ protected:
 
     uint16_t port() const { return tcp_server_->local_port(); }
 
-    // Triggers graceful shutdown (mirrors main.cpp::shutdown_server).
-    // Tests that verify shutdown behavior should call this explicitly.
     void shutdown_server_() {
         shutdown_fired_ = true;
         tcp_server_->stop();
@@ -162,4 +158,4 @@ protected:
     bool shutdown_fired_{false};
 };
 
-} // namespace test
+}

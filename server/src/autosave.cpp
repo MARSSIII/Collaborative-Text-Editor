@@ -103,4 +103,4 @@ void AutosaveThread::maybe_create_snapshot(collab::Document& doc,
     }
 }
 
-} // namespace server
+}

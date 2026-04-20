@@ -95,10 +95,6 @@ bool MessageHandler::check_auth(const std::shared_ptr<ClientSession>& session,
     return true;
 }
 
-// ============================================================
-// Auth
-// ============================================================
-
 void MessageHandler::handle_auth_request(std::shared_ptr<ClientSession> session,
                                          const nlohmann::json& j) {
     auto msg = j.get<AuthRequestMsg>();
@@ -127,10 +123,6 @@ void MessageHandler::handle_auth_request(std::shared_ptr<ClientSession> session,
         session->send(serialize(AuthResponseMsg{false, 0, error}));
     }
 }
-
-// ============================================================
-// Documents
-// ============================================================
 
 void MessageHandler::handle_doc_list(std::shared_ptr<ClientSession> session) {
     auto items = doc_manager_.list_documents(session->user_id());
@@ -176,28 +168,23 @@ void MessageHandler::handle_doc_join(std::shared_ptr<ClientSession> session,
         return;
     }
 
-    // M-3: reuse DocumentManager::role_to_string instead of duplicating
     auto role_str = doc_manager_.role_to_string(msg.docId, session->user_id());
 
-    // Get current state before join
     auto content = doc->get_content();
     auto revision = doc->revision();
 
-    // Get currently connected users
     auto connected = doc_session->connected_users();
     std::vector<UserInfo> users;
     for (auto& cu : connected) {
         users.push_back({cu.userId, cu.username, cu.color});
     }
 
-    // Send join response first
     session->set_current_doc(msg.docId);
     session->send(serialize(DocJoinResponseMsg{
         .success = true, .docId = msg.docId, .title = doc->title(),
         .content = content, .revision = revision,
         .role = role_str, .users = users}));
 
-    // Enqueue join command to document thread
     DocCommand cmd;
     cmd.type = DocCommand::Type::Join;
     cmd.userId = session->user_id();
@@ -235,7 +222,6 @@ void MessageHandler::handle_doc_delete(std::shared_ptr<ClientSession> session,
         return;
     }
 
-    // Notify subscribers
     auto doc_session = doc_manager_.get_session(msg.docId);
     if (doc_session) {
         DocCommand cmd;
@@ -285,16 +271,11 @@ void MessageHandler::handle_doc_share(std::shared_ptr<ClientSession> session,
 
     session->send(serialize(DocShareResponseMsg{true}));
 
-    // Notify target user if online
     auto target_session = tcp_server_.find_session_by_user_id(*target_id);
     if (target_session && target_session->current_doc_id() == msg.docId) {
         target_session->send(serialize(RoleChangedMsg{msg.docId, msg.role}));
     }
 }
-
-// ============================================================
-// Operations
-// ============================================================
 
 void MessageHandler::handle_operation(std::shared_ptr<ClientSession> session,
                                       const nlohmann::json& j) {
@@ -312,7 +293,6 @@ void MessageHandler::handle_operation(std::shared_ptr<ClientSession> session,
         return;
     }
 
-    // M-4: validate ops array size per spec (max 1000)
     if (msg.ops.size() > 1000) {
         send_error(session, "invalid_message", "Too many operations (max 1000)");
         return;
@@ -342,16 +322,12 @@ void MessageHandler::handle_operation(std::shared_ptr<ClientSession> session,
     }
 }
 
-// ============================================================
-// Cursors
-// ============================================================
-
 void MessageHandler::handle_cursor_update(std::shared_ptr<ClientSession> session,
                                           const nlohmann::json& j) {
     auto msg = j.get<CursorUpdateMsg>();
 
     if (session->current_doc_id() != msg.docId) {
-        return; // Silently ignore
+        return;
     }
 
     auto doc_session = doc_manager_.get_session(msg.docId);
@@ -368,15 +344,10 @@ void MessageHandler::handle_cursor_update(std::shared_ptr<ClientSession> session
     doc_manager_.update_cursor(msg.docId, std::move(state));
 }
 
-// ============================================================
-// Helpers
-// ============================================================
-
 void MessageHandler::send_error(std::shared_ptr<ClientSession> session,
                                 const std::string& code,
                                 const std::string& message) {
     session->send(serialize(ErrorMsg{code, message}));
-    // M-6: close connection after 3 malformed messages (per spec docs/07)
     if (code == "invalid_message" && session->increment_error_count() >= 3) {
         logger_.warn(std::format("Closing session {} after 3 malformed messages",
                                   session->session_id()));
@@ -385,12 +356,10 @@ void MessageHandler::send_error(std::shared_ptr<ClientSession> session,
 }
 
 std::string MessageHandler::generate_color(uint32_t userId) {
-    // Golden ratio hue spacing for visually distinct colors
     constexpr double golden = 0.618033988749895;
     double hue = std::fmod(userId * golden, 1.0) * 360.0;
     double s = 0.7, l = 0.5;
 
-    // HSL to RGB
     auto hue2rgb = [](double p, double q, double t) -> double {
         if (t < 0) t += 1;
         if (t > 1) t -= 1;
@@ -411,4 +380,4 @@ std::string MessageHandler::generate_color(uint32_t userId) {
     return std::format("#{:02X}{:02X}{:02X}", r, g, b);
 }
 
-} // namespace server
+}

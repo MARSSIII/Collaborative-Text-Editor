@@ -32,4 +32,4 @@ void StatusBarWidget::setOnlineCount(int count) {
     online_label_->setText(QStringLiteral("online: %1").arg(count));
 }
 
-} // namespace collab_client
+}

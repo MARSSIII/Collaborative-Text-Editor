@@ -159,4 +159,4 @@ void ConnectionDialog::reportFailure(const QString& message) {
     QMetaObject::invokeMethod(nm_, "disconnectFromHost", Qt::QueuedConnection);
 }
 
-} // namespace collab_client
+}

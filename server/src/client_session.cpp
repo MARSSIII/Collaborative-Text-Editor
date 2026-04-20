@@ -17,7 +17,7 @@ void ClientSession::start() {
 }
 
 void ClientSession::send(const std::string& json_payload) {
-    if (disconnected_.load(std::memory_order_relaxed)) return;  // C-3
+    if (disconnected_.load(std::memory_order_relaxed)) return;
 
     auto frame = encode_frame(json_payload);
 
@@ -37,7 +37,7 @@ void ClientSession::close() {
 
 void ClientSession::set_auth(uint32_t userId, const std::string& username,
                              const std::string& color) {
-    std::lock_guard lock(state_mutex_);  // C-2
+    std::lock_guard lock(state_mutex_);
     userId_ = userId;
     username_ = username;
     color_ = color;
@@ -48,16 +48,16 @@ void ClientSession::do_read_header() {
     auto self = shared_from_this();
     boost::asio::async_read(socket_,
         boost::asio::buffer(header_buf_),
-        [this, self](boost::system::error_code ec, std::size_t /*length*/) {
+        [this, self](boost::system::error_code ec, std::size_t ) {
             if (ec) {
-                if (!disconnected_.exchange(true))  // C-3
+                if (!disconnected_.exchange(true))
                     on_disconnect_(self);
                 return;
             }
             auto payload_len = decode_frame_header(header_buf_.data());
             if (!payload_len) {
                 close();
-                if (!disconnected_.exchange(true))  // C-3
+                if (!disconnected_.exchange(true))
                     on_disconnect_(self);
                 return;
             }
@@ -70,9 +70,9 @@ void ClientSession::do_read_body(uint32_t body_length) {
     auto self = shared_from_this();
     boost::asio::async_read(socket_,
         boost::asio::buffer(body_buf_),
-        [this, self](boost::system::error_code ec, std::size_t /*length*/) {
+        [this, self](boost::system::error_code ec, std::size_t ) {
             if (ec) {
-                if (!disconnected_.exchange(true))  // C-3
+                if (!disconnected_.exchange(true))
                     on_disconnect_(self);
                 return;
             }
@@ -83,7 +83,6 @@ void ClientSession::do_read_body(uint32_t body_length) {
 }
 
 void ClientSession::do_write() {
-    // Must be called with write_mutex_ held
     if (write_queue_.empty()) {
         writing_ = false;
         return;
@@ -93,14 +92,14 @@ void ClientSession::do_write() {
     auto& front = write_queue_.front();
     boost::asio::async_write(socket_,
         boost::asio::buffer(front),
-        [this, self](boost::system::error_code ec, std::size_t /*length*/) {
+        [this, self](boost::system::error_code ec, std::size_t ) {
             if (ec) {
-                if (!disconnected_.exchange(true))  // C-3
+                if (!disconnected_.exchange(true))
                     on_disconnect_(self);
                 return;
             }
             std::lock_guard lock(write_mutex_);
-            write_queue_.pop_front();  // M-1: O(1) instead of O(n)
+            write_queue_.pop_front();
             if (!write_queue_.empty()) {
                 do_write();
             } else {
@@ -109,4 +108,4 @@ void ClientSession::do_write() {
         });
 }
 
-} // namespace server
+}

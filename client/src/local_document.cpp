@@ -33,4 +33,4 @@ void LocalDocument::set_revision(uint32_t rev) {
     revision_ = rev;
 }
 
-} // namespace collab_client
+}

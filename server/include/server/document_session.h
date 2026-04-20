@@ -76,8 +76,8 @@ private:
     collab::MPSCQueue<DocCommand> command_queue_;
     std::jthread thread_;
 
-    mutable std::mutex connected_users_mutex_;  // C-1: protects connected_users_
+    mutable std::mutex connected_users_mutex_;
     std::unordered_map<uint32_t, ConnectedUser> connected_users_;
 };
 
-} // namespace server
+}

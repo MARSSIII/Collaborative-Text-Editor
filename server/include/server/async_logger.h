@@ -41,4 +41,4 @@ private:
     LogLevel min_level_;
 };
 
-} // namespace server
+}

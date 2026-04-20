@@ -31,4 +31,4 @@ void ConsoleSink::flush() {
     std::cerr.flush();
 }
 
-} // namespace server
+}

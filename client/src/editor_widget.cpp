@@ -264,4 +264,4 @@ void EditorWidget::onContentsChange(int position, int charsRemoved, int charsAdd
     if (!ops.empty()) emit localOperationsGenerated(std::move(ops));
 }
 
-} // namespace collab_client
+}

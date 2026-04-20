@@ -66,4 +66,4 @@ private:
     uint32_t next_doc_id_{1};
 };
 
-} // namespace server
+}

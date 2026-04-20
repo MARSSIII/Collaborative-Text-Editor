@@ -30,4 +30,4 @@ private:
     std::jthread thread_;
 };
 
-} // namespace server
+}

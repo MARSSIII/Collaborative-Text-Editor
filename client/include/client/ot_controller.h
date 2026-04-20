@@ -58,4 +58,4 @@ private:
     std::vector<collab::Operation> buffer_;
 };
 
-} // namespace collab_client
+}

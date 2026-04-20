@@ -53,4 +53,4 @@ void RemoteCursorsModel::clear() {
     emit cursorsChanged();
 }
 
-} // namespace collab_client
+}

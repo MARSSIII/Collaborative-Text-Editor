@@ -126,4 +126,4 @@ void NetworkManager::onReadyRead() {
     }
 }
 
-} // namespace collab_client
+}

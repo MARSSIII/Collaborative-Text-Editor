@@ -84,4 +84,4 @@ std::string AsyncLogger::level_str(LogLevel level) {
     return "???";
 }
 
-} // namespace server
+}

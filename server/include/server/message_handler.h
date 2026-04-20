@@ -11,12 +11,12 @@ namespace server {
 
 class DocumentManager;
 
-} // namespace server
+}
 
 namespace collab {
 class AuthManager;
 class AccessControl;
-} // namespace collab
+}
 
 namespace server {
 
@@ -65,4 +65,4 @@ private:
     AsyncLogger& logger_;
 };
 
-} // namespace server
+}

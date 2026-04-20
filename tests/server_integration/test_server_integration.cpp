@@ -75,7 +75,7 @@ TEST_F(ServerFixture, JoinLeaveBroadcast) {
     EXPECT_EQ(user_joined.at("username").get<std::string>(), "bob");
     EXPECT_EQ(user_joined.at("userId").get<uint32_t>(), bob_id);
 
-    bob.send_insert(doc_id, /*revision=*/0, /*pos=*/0, "HELLO");
+    bob.send_insert(doc_id, 0, 0, "HELLO");
 
     auto ack = bob.recv_until_type("operation_ack", 2s);
     ASSERT_FALSE(ack.is_null());
@@ -124,7 +124,6 @@ TEST_F(ServerFixture, ConcurrentOTConvergence) {
     ASSERT_FALSE(a_broadcast.is_null());
     ASSERT_FALSE(b_broadcast.is_null());
 
-    // Both sides eventually leave and rejoin to snapshot final content.
     alice.leave_document(doc_id);
     bob.leave_document(doc_id);
 

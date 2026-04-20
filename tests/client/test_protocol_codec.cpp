@@ -14,7 +14,7 @@ QByteArray to_frame_payload(const std::string& s) {
     return QByteArray(s.data(), static_cast<int>(s.size()));
 }
 
-} // namespace
+}
 
 TEST(ProtocolCodec, AuthRequestRoundTripAscii) {
     auto payload = encode_auth_request("login", "alice", "s3cureP@ss");

@@ -30,7 +30,7 @@ void DocumentSession::request_stop() {
 }
 
 std::vector<ConnectedUser> DocumentSession::connected_users() const {
-    std::lock_guard lock(connected_users_mutex_);  // C-1
+    std::lock_guard lock(connected_users_mutex_);
     std::vector<ConnectedUser> result;
     result.reserve(connected_users_.size());
     for (auto& [id, user] : connected_users_) {
@@ -54,7 +54,6 @@ void DocumentSession::run(std::stop_token stop) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     }
-    // Drain remaining commands
     while (auto cmd = command_queue_.try_dequeue()) {
         process_command(*cmd);
     }
@@ -81,7 +80,7 @@ void DocumentSession::process_command(const DocCommand& cmd) {
 
 void DocumentSession::handle_join(const DocCommand& cmd) {
     {
-        std::lock_guard lock(connected_users_mutex_);  // C-1
+        std::lock_guard lock(connected_users_mutex_);
         connected_users_[cmd.userId] = {
             cmd.userId, cmd.username, cmd.color, cmd.session
         };
@@ -98,7 +97,7 @@ void DocumentSession::handle_join(const DocCommand& cmd) {
 
 void DocumentSession::handle_leave(const DocCommand& cmd) {
     {
-        std::lock_guard lock(connected_users_mutex_);  // C-1
+        std::lock_guard lock(connected_users_mutex_);
         connected_users_.erase(cmd.userId);
     }
     doc_->unsubscribe(cmd.userId);
@@ -120,11 +119,9 @@ void DocumentSession::handle_operation(const DocCommand& cmd) {
         return;
     }
 
-    // Ack to author
     send_to_user(cmd.userId,
         serialize(OperationAckMsg{doc_->id(), doc_->revision()}));
 
-    // Broadcast to others
     auto& op = result.transformed_op;
     OpEntry entry;
     if (op.type == collab::Operation::Type::Insert) {
@@ -142,7 +139,7 @@ void DocumentSession::handle_operation(const DocCommand& cmd) {
 void DocumentSession::handle_delete() {
     broadcast(serialize(DocDeletedMsg{doc_->id()}));
     {
-        std::lock_guard lock(connected_users_mutex_);  // C-1
+        std::lock_guard lock(connected_users_mutex_);
         connected_users_.clear();
     }
     logger_.info(std::format("Document {} deleted, all users disconnected",
@@ -151,7 +148,6 @@ void DocumentSession::handle_delete() {
 
 void DocumentSession::broadcast(const std::string& json_payload,
                                 uint32_t excludeUserId) {
-    // C-1: copy weak_ptrs under lock, send outside lock
     std::vector<std::weak_ptr<ClientSession>> targets;
     {
         std::lock_guard lock(connected_users_mutex_);
@@ -173,7 +169,7 @@ void DocumentSession::send_to_user(uint32_t userId,
                                    const std::string& json_payload) {
     std::weak_ptr<ClientSession> wp;
     {
-        std::lock_guard lock(connected_users_mutex_);  // C-1
+        std::lock_guard lock(connected_users_mutex_);
         auto it = connected_users_.find(userId);
         if (it != connected_users_.end()) {
             wp = it->second.session;
@@ -184,4 +180,4 @@ void DocumentSession::send_to_user(uint32_t userId,
     }
 }
 
-} // namespace server
+}

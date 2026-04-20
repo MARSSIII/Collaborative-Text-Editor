@@ -72,4 +72,4 @@ private:
     static std::atomic<uint64_t> next_session_id_;
 };
 
-} // namespace server
+}

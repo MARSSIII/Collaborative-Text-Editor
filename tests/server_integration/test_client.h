@@ -21,11 +21,8 @@ public:
 
     void send(const nlohmann::json& msg);
 
-    // Receives one framed JSON message. Returns std::nullopt on timeout or disconnect.
     std::optional<nlohmann::json> recv(std::chrono::milliseconds timeout);
 
-    // Sends a raw (unframed) byte sequence - used to simulate a malformed frame
-    // payload that is still length-prefixed correctly but is not valid JSON.
     void send_raw_frame(const std::string& payload);
 
     bool is_connected() const;
@@ -58,4 +55,4 @@ private:
     mutable bool connected_{true};
 };
 
-} // namespace test
+}

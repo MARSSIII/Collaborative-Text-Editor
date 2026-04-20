@@ -43,4 +43,4 @@ private:
     std::unordered_map<uint32_t, RemoteCursor> cursors_;
 };
 
-} // namespace collab_client
+}

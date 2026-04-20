@@ -60,4 +60,4 @@ private:
     QTimer* cursor_anim_timer_ = nullptr;
 };
 
-} // namespace collab_client
+}

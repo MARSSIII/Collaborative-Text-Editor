@@ -277,4 +277,4 @@ void EditorWindow::closeWithNotice(const QString& title, const QString& body) {
     close();
 }
 
-} // namespace collab_client
+}

@@ -5,10 +5,6 @@
 
 namespace server {
 
-// ============================================================
-// MessageType ↔ string
-// ============================================================
-
 static const std::unordered_map<std::string, MessageType> kStringToType = {
     {"auth_request",              MessageType::AuthRequest},
     {"auth_response",             MessageType::AuthResponse},
@@ -61,10 +57,6 @@ std::string message_type_to_string(MessageType type) {
     auto it = kTypeToString.find(type);
     return it != kTypeToString.end() ? it->second : "unknown";
 }
-
-// ============================================================
-// from_json (C→S deserialization)
-// ============================================================
 
 void from_json(const nlohmann::json& j, AuthRequestMsg& m) {
     j.at("action").get_to(m.action);
@@ -120,10 +112,6 @@ void from_json(const nlohmann::json& j, CursorUpdateMsg& m) {
         m.selectionEnd = j["selectionEnd"].get<uint32_t>();
     }
 }
-
-// ============================================================
-// Client-side mirrors (C→S to_json, S→C from_json)
-// ============================================================
 
 void to_json(nlohmann::json& j, const AuthRequestMsg& m) {
     j = {{"type", "auth_request"},
@@ -293,10 +281,6 @@ void from_json(const nlohmann::json& j, ErrorMsg& m) {
     j.at("message").get_to(m.message);
 }
 
-// ============================================================
-// to_json (S→C serialization)
-// ============================================================
-
 void to_json(nlohmann::json& j, const AuthResponseMsg& m) {
     j = {{"type", "auth_response"}, {"success", m.success}};
     if (m.success) {
@@ -408,10 +392,6 @@ void to_json(nlohmann::json& j, const ErrorMsg& m) {
     j = {{"type", "error"}, {"code", m.code}, {"message", m.message}};
 }
 
-// ============================================================
-// Framing
-// ============================================================
-
 std::vector<uint8_t> encode_frame(const std::string& payload) {
     auto len = static_cast<uint32_t>(payload.size());
     std::vector<uint8_t> frame(4 + payload.size());
@@ -432,4 +412,4 @@ std::optional<uint32_t> decode_frame_header(const uint8_t* data) {
     return len;
 }
 
-} // namespace server
+}

@@ -47,4 +47,4 @@ private:
     QString pending_action_;
 };
 
-} // namespace collab_client
+}

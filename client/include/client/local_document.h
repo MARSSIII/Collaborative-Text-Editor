@@ -27,4 +27,4 @@ private:
     uint32_t revision_ = 0;
 };
 
-} // namespace collab_client
+}

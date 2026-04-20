@@ -27,7 +27,6 @@ uint32_t DocumentManager::create_document(const std::string& title,
 
     access_.grant(docId, ownerId, collab::Role::Owner);
 
-    // Create empty file
     auto path = std::format("{}/documents/{}.txt", data_dir_, docId);
     std::ofstream(path).close();
     save_meta(docId, title);
@@ -36,20 +35,17 @@ uint32_t DocumentManager::create_document(const std::string& title,
 }
 
 std::shared_ptr<collab::Document> DocumentManager::get_document(uint32_t docId) {
-    // M-2: check cache under lock
     {
         std::lock_guard lock(mutex_);
         auto it = documents_.find(docId);
         if (it != documents_.end()) return it->second;
     }
-    // Disk I/O without holding mutex
     auto loaded = load_from_disk_unlocked(docId);
     if (!loaded) return nullptr;
 
-    // Double-check + insert under lock
     std::lock_guard lock(mutex_);
     auto it = documents_.find(docId);
-    if (it != documents_.end()) return it->second;  // another thread loaded it
+    if (it != documents_.end()) return it->second;
     documents_[docId] = loaded;
     titles_[docId] = loaded->title();
     if (docId >= next_doc_id_) next_doc_id_ = docId + 1;
@@ -71,7 +67,6 @@ bool DocumentManager::delete_document(uint32_t docId) {
 
     cursor_buffers_.erase(docId);
 
-    // Remove files
     auto doc_path = std::format("{}/documents/{}.txt", data_dir_, docId);
     auto meta_path = std::format("{}/documents/{}.meta", data_dir_, docId);
     fs::remove(doc_path);
@@ -182,7 +177,6 @@ std::vector<uint32_t> DocumentManager::all_active_doc_ids() {
 
 std::shared_ptr<collab::Document>
 DocumentManager::load_from_disk_unlocked(uint32_t docId) {
-    // M-2: called WITHOUT mutex — only reads from disk, does not write member maps
     auto path = std::format("{}/documents/{}.txt", data_dir_, docId);
     if (!fs::exists(path)) return nullptr;
 
@@ -203,7 +197,6 @@ DocumentManager::load_from_disk_unlocked(uint32_t docId) {
 }
 
 std::string DocumentManager::role_to_string(uint32_t docId, uint32_t userId) {
-    // Must be called with mutex_ held (access_ has its own mutex)
     auto role = access_.get_role(docId, userId);
     if (!role) return "none";
     switch (*role) {
@@ -231,4 +224,4 @@ std::string DocumentManager::load_meta(uint32_t docId) {
     return title;
 }
 
-} // namespace server
+}

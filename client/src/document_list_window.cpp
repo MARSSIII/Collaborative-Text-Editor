@@ -28,7 +28,7 @@ QString format_entry(const server::DocListEntry& e) {
         .arg(e.onlineCount);
 }
 
-} // namespace
+}
 
 DocumentListWindow::DocumentListWindow(NetworkManager* nm, QWidget* parent)
     : QMainWindow(parent), nm_(nm) {
@@ -219,4 +219,4 @@ void DocumentListWindow::applyDocList(const server::DocListResponseMsg& msg) {
     status_->setText(tr("%1 document(s).").arg(msg.documents.size()));
 }
 
-} // namespace collab_client
+}

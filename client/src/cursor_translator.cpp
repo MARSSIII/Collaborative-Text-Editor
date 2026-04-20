@@ -18,4 +18,4 @@ uint32_t translate(uint32_t my_pos, const collab::Operation& op) noexcept {
     return p;
 }
 
-} // namespace collab_client::cursor_translator
+}

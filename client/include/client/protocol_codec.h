@@ -43,4 +43,4 @@ std::optional<server::DocDeletedMsg> parse_doc_deleted(const QByteArray& payload
 std::optional<server::RoleChangedMsg> parse_role_changed(const QByteArray& payload);
 std::optional<server::ErrorMsg> parse_error(const QByteArray& payload);
 
-} // namespace collab_client
+}

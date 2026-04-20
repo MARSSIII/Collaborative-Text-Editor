@@ -10,7 +10,7 @@ QByteArray to_qbytes(const std::string& s) {
     return QByteArray(s.data(), static_cast<int>(s.size()));
 }
 
-} // namespace
+}
 
 QByteArray encode_auth_request(const QString& action,
                                const QString& username,
@@ -92,7 +92,7 @@ std::optional<T> parse_as(const QByteArray& payload) {
     }
 }
 
-} // namespace
+}
 
 std::optional<server::AuthResponseMsg> parse_auth_response(const QByteArray& payload) {
     return parse_as<server::AuthResponseMsg>(payload);
@@ -142,4 +142,4 @@ std::optional<server::ErrorMsg> parse_error(const QByteArray& payload) {
     return parse_as<server::ErrorMsg>(payload);
 }
 
-} // namespace collab_client
+}

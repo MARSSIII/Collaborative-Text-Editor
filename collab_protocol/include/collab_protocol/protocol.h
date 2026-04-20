@@ -263,4 +263,4 @@ std::vector<uint8_t> encode_frame(const std::string& payload);
 
 std::optional<uint32_t> decode_frame_header(const uint8_t* data);
 
-} // namespace server
+}

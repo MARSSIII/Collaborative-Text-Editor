@@ -28,47 +28,37 @@ static void shutdown_server(server::TcpServer& tcp_server,
                             boost::asio::io_context& io_ctx) {
     logger.info("Initiating graceful shutdown...");
 
-    // 1. Stop accepting new connections
     tcp_server.stop();
 
-    // 2. Broadcast shutdown to all clients
     tcp_server.broadcast_all(server::serialize(
         server::ServerShutdownMsg{"Server is shutting down"}));
 
-    // 3. Stop cursor aggregation
     cursor_agg.stop();
 
-    // 4. Stop all document sessions
     for (auto docId : doc_manager.all_active_doc_ids()) {
         doc_manager.remove_session(docId);
     }
 
-    // 5. Final save
     autosave.force_save_all();
     autosave.stop();
 
-    // 6. Close all client connections
     for (auto& session : tcp_server.all_sessions()) {
         session->close();
     }
 
-    // 7. Stop io_context
     io_ctx.stop();
 
     logger.info("Shutdown complete");
 }
 
 int main(int argc, char* argv[]) {
-    // 1. Load config
     std::string config_path = argc > 1 ? argv[1] : "config.json";
     auto config = server::load_config(config_path);
 
-    // 2. Create data directories
     fs::create_directories(config.data_dir + "/documents");
     fs::create_directories(config.data_dir + "/snapshots");
     fs::create_directories(config.data_dir + "/logs");
 
-    // 3. Logger
     std::vector<std::unique_ptr<server::ILogSink>> sinks;
     sinks.push_back(std::make_unique<server::FileSink>(
         config.data_dir + "/logs/server.log"));
@@ -89,31 +79,24 @@ int main(int argc, char* argv[]) {
                             config.port, config.effective_thread_pool_size(),
                             config.data_dir));
 
-    // 4. Business logic
     collab::AuthManager auth;
     collab::AccessControl access;
 
-    // 5. Document manager
     server::DocumentManager doc_manager(access, config.data_dir, logger);
 
-    // 6. Asio
     boost::asio::io_context io_ctx;
 
-    // 7. Thread pool
     collab::ThreadPool thread_pool(config.effective_thread_pool_size());
 
-    // 8. TCP server + message handler
     server::MessageHandler* handler_ptr = nullptr;
 
     server::TcpServer tcp_server(io_ctx, config.port,
-        // on_message: dispatch to thread pool
         [&](std::shared_ptr<server::ClientSession> session,
             const std::string& payload) {
             thread_pool.submit([&handler = *handler_ptr, session, payload] {
                 handler.handle_message(session, payload);
             });
         },
-        // on_disconnect: cleanup
         [&](std::shared_ptr<server::ClientSession> session) {
             if (session->current_doc_id() > 0) {
                 auto doc_session = doc_manager.get_session(
@@ -139,19 +122,16 @@ int main(int argc, char* argv[]) {
                                    tcp_server, logger);
     handler_ptr = &handler;
 
-    // 9. Cursor aggregation
     server::CursorAggregator cursor_agg(
         doc_manager,
         std::chrono::milliseconds(config.cursor_broadcast_interval_ms),
         logger);
 
-    // 10. Autosave
     server::AutosaveThread autosave(
         doc_manager, config.data_dir,
         std::chrono::seconds(config.autosave_interval_sec),
         config.snapshot_revision_threshold, logger);
 
-    // 11. Signal handler
     boost::asio::signal_set signals(io_ctx, SIGINT, SIGTERM);
     signals.async_wait(
         [&](boost::system::error_code, int sig) {
@@ -160,7 +140,6 @@ int main(int argc, char* argv[]) {
                            autosave, logger, io_ctx);
         });
 
-    // 12. Start everything
     tcp_server.start();
     cursor_agg.start();
     autosave.start();
@@ -168,7 +147,6 @@ int main(int argc, char* argv[]) {
     std::cout << std::format("Server listening on port {}\n", config.port);
     logger.info(std::format("Server started on port {}", config.port));
 
-    // 13. Run event loop (blocks until shutdown)
     io_ctx.run();
 
     logger.info("Server stopped");

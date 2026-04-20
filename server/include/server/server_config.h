@@ -28,4 +28,4 @@ struct ServerConfig {
 ServerConfig load_config(const std::string& path);
 ServerConfig default_config();
 
-} // namespace server
+}

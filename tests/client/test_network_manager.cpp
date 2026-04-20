@@ -35,7 +35,7 @@ QByteArray oversized_frame_header(quint32 claimed_len) {
     return out;
 }
 
-} // namespace
+}
 
 class NetworkManagerTest : public QObject {
     Q_OBJECT

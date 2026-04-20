@@ -23,7 +23,7 @@ QIcon dot_icon(const QColor& color) {
     return QIcon(pm);
 }
 
-} // namespace
+}
 
 UserPanelWidget::UserPanelWidget(QWidget* parent) : QWidget(parent) {
     auto* layout = new QVBoxLayout(this);
@@ -38,7 +38,7 @@ UserPanelWidget::UserPanelWidget(QWidget* parent) : QWidget(parent) {
     share_btn_->setToolTip(tr("Grant editor access to another user"));
     connect(share_btn_, &QPushButton::clicked, this, &UserPanelWidget::shareRequested);
     layout->addWidget(header_);
-    layout->addWidget(list_, /*stretch*/ 1);
+    layout->addWidget(list_,  1);
     layout->addWidget(share_btn_);
     setMinimumWidth(180);
 }
@@ -87,4 +87,4 @@ void UserPanelWidget::rebuild() {
     }
 }
 
-} // namespace collab_client
+}

@@ -53,4 +53,4 @@ ServerConfig load_config(const std::string& path) {
     return config;
 }
 
-} // namespace server
+}

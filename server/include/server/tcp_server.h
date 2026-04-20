@@ -37,4 +37,4 @@ private:
     std::unordered_map<uint64_t, std::shared_ptr<ClientSession>> sessions_;
 };
 
-} // namespace server
+}

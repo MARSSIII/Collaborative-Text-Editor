@@ -42,4 +42,4 @@ private:
     uint32_t local_user_id_ = 0;
 };
 
-} // namespace collab_client
+}

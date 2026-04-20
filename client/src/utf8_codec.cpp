@@ -16,4 +16,4 @@ int utf8_to_utf16_offset(const QByteArray& utf8_text, uint32_t utf8_offset) {
     return QString::fromUtf8(utf8_text.left(static_cast<int>(utf8_offset))).size();
 }
 
-} // namespace collab_client::utf8_codec
+}

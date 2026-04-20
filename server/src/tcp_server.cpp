@@ -54,7 +54,7 @@ void TcpServer::remove_session(uint64_t session_id) {
 void TcpServer::do_accept() {
     acceptor_.async_accept(
         [this](boost::system::error_code ec, boost::asio::ip::tcp::socket socket) {
-            if (ec) return; // acceptor closed
+            if (ec) return;
 
             auto session = std::make_shared<ClientSession>(
                 std::move(socket), on_message_, on_disconnect_);
@@ -69,4 +69,4 @@ void TcpServer::do_accept() {
         });
 }
 
-} // namespace server
+}

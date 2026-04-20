@@ -49,4 +49,4 @@ private:
     uint32_t pending_join_doc_id_ = 0;
 };
 
-} // namespace collab_client
+}

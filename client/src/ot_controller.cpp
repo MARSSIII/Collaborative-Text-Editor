@@ -35,7 +35,7 @@ collab::Operation from_entry(const server::OpEntry& entry,
     return collab::make_delete(entry.pos, entry.len, "", userId, revision);
 }
 
-} // namespace
+}
 
 OTController::OTController(NetworkManager* nm,
                            LocalDocument* doc,
@@ -180,4 +180,4 @@ void OTController::emitStateLabel() {
     }
 }
 
-} // namespace collab_client
+}

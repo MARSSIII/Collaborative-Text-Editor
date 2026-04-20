@@ -50,7 +50,7 @@ QByteArray build_error(const std::string& code, const std::string& message) {
     return QByteArray(s.data(), static_cast<int>(s.size()));
 }
 
-} // namespace
+}
 
 class OTControllerTest : public QObject {
     Q_OBJECT

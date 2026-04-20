@@ -69,4 +69,4 @@ private:
     bool cursor_dirty_ = false;
 };
 
-} // namespace collab_client
+}

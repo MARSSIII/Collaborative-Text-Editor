@@ -32,4 +32,4 @@ public:
     void flush() override;
 };
 
-} // namespace server
+}

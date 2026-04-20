@@ -62,4 +62,4 @@ void CursorAggregator::broadcast_loop(std::stop_token stop) {
     }
 }
 
-} // namespace server
+}

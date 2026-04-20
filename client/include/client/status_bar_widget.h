@@ -25,4 +25,4 @@ private:
     QLabel* online_label_;
 };
 
-} // namespace collab_client
+}
