@@ -30,7 +30,7 @@ EditorWindow::EditorWindow(NetworkManager* nm,
     editor_->resetContent(QString::fromUtf8(initial.content.data(),
                                             static_cast<int>(initial.content.size())));
 
-    ot_ = new OTController(nm_, local_doc_.get(), doc_id_, this);
+    ot_ = new OTController(nm_, local_doc_.get(), doc_id_, initial.revision, this);
 
     status_ = new StatusBarWidget(this);
     setStatusBar(status_);
@@ -49,6 +49,10 @@ EditorWindow::EditorWindow(NetworkManager* nm,
             this, &EditorWindow::onNetworkMessage);
     connect(ot_, &OTController::revisionChanged,
             this, &EditorWindow::onRevisionChanged);
+    connect(ot_, &OTController::remoteOperationApplied,
+            editor_, &EditorWidget::applyRemoteOperation);
+    connect(ot_, &OTController::stateChanged,
+            status_, &StatusBarWidget::setStateLabel);
     connect(ot_, &OTController::fatalError,
             this, &EditorWindow::onFatalError);
 

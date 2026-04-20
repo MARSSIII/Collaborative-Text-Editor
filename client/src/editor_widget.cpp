@@ -1,5 +1,6 @@
 #include "client/editor_widget.h"
 
+#include "client/cursor_translator.h"
 #include "client/utf8_codec.h"
 
 #include <QTextCursor>
@@ -25,25 +26,44 @@ void EditorWidget::setIdentity(uint32_t user_id, uint32_t revision) {
 }
 
 void EditorWidget::applyRemoteOperation(const collab::Operation& op) {
+    if (op.is_noop()) return;
+
+    const auto utf8_before = last_known_text_.toUtf8();
+    const auto user_cursor = textCursor();
+    const uint32_t old_anchor_utf8 = utf8_codec::utf16_to_utf8_offset(
+        last_known_text_, user_cursor.anchor());
+    const uint32_t old_position_utf8 = utf8_codec::utf16_to_utf8_offset(
+        last_known_text_, user_cursor.position());
+
     applying_remote_ = true;
 
-    const auto utf8_current = last_known_text_.toUtf8();
-    const int utf16_pos = utf8_codec::utf8_to_utf16_offset(utf8_current, op.position);
-
-    QTextCursor c(document());
+    const int utf16_pos = utf8_codec::utf8_to_utf16_offset(utf8_before, op.position);
+    QTextCursor edit_cursor(document());
     if (op.type == collab::Operation::Type::Insert) {
-        c.setPosition(utf16_pos);
-        c.insertText(QString::fromUtf8(op.text.data(),
-                                       static_cast<int>(op.text.size())));
+        edit_cursor.setPosition(utf16_pos);
+        edit_cursor.insertText(QString::fromUtf8(
+            op.text.data(), static_cast<int>(op.text.size())));
     } else {
         const int utf16_end = utf8_codec::utf8_to_utf16_offset(
-            utf8_current, op.position + op.length);
-        c.setPosition(utf16_pos);
-        c.setPosition(utf16_end, QTextCursor::KeepAnchor);
-        c.removeSelectedText();
+            utf8_before, op.position + op.length);
+        edit_cursor.setPosition(utf16_pos);
+        edit_cursor.setPosition(utf16_end, QTextCursor::KeepAnchor);
+        edit_cursor.removeSelectedText();
     }
 
     last_known_text_ = toPlainText();
+
+    const uint32_t new_anchor_utf8 = cursor_translator::translate(old_anchor_utf8, op);
+    const uint32_t new_position_utf8 = cursor_translator::translate(old_position_utf8, op);
+    const auto utf8_after = last_known_text_.toUtf8();
+    const int new_anchor_utf16 = utf8_codec::utf8_to_utf16_offset(utf8_after, new_anchor_utf8);
+    const int new_position_utf16 = utf8_codec::utf8_to_utf16_offset(utf8_after, new_position_utf8);
+
+    QTextCursor shifted(document());
+    shifted.setPosition(new_anchor_utf16);
+    shifted.setPosition(new_position_utf16, QTextCursor::KeepAnchor);
+    setTextCursor(shifted);
+
     applying_remote_ = false;
 }
 

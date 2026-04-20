@@ -10,6 +10,7 @@ add_library(collab_client_lib STATIC
     src/connection_dialog.cpp
     src/document_list_window.cpp
     src/utf8_codec.cpp
+    src/cursor_translator.cpp
     src/local_document.cpp
     src/ot_controller.cpp
     src/editor_widget.cpp
