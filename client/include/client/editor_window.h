@@ -5,6 +5,7 @@
 #include <QMainWindow>
 
 #include <memory>
+#include <set>
 
 namespace collab_client {
 
@@ -43,6 +44,8 @@ private:
     OTController* ot_ = nullptr;
     EditorWidget* editor_ = nullptr;
     StatusBarWidget* status_ = nullptr;
+
+    std::set<uint32_t> online_user_ids_;
 };
 
 } // namespace collab_client

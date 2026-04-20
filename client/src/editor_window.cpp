@@ -12,6 +12,8 @@
 #include <QMetaObject>
 #include <QTextCursor>
 
+#include <nlohmann/json.hpp>
+
 namespace collab_client {
 
 EditorWindow::EditorWindow(NetworkManager* nm,
@@ -32,10 +34,13 @@ EditorWindow::EditorWindow(NetworkManager* nm,
 
     ot_ = new OTController(nm_, local_doc_.get(), doc_id_, initial.revision, this);
 
+    online_user_ids_.insert(nm_->userId());
+    for (const auto& u : initial.users) online_user_ids_.insert(u.userId);
+
     status_ = new StatusBarWidget(this);
     setStatusBar(status_);
     status_->setRevision(initial.revision);
-    status_->setOnlineCount(static_cast<int>(initial.users.size()));
+    status_->setOnlineCount(static_cast<int>(online_user_ids_.size()));
     status_->setStateLabel("SYN");
 
     setCentralWidget(editor_);
@@ -75,6 +80,35 @@ void EditorWindow::onCursorPositionChanged() {
 
 void EditorWindow::onNetworkMessage(QByteArray payload) {
     ot_->onNetworkMessage(payload);
+
+    auto env = parse_envelope(payload);
+    if (env.type == server::MessageType::UserJoined) {
+        try {
+            auto msg = nlohmann::json::parse(payload.constData(),
+                                             payload.constData() + payload.size())
+                           .get<server::UserJoinedMsg>();
+            if (msg.docId == doc_id_) {
+                online_user_ids_.insert(msg.userId);
+                status_->setOnlineCount(static_cast<int>(online_user_ids_.size()));
+                status_->showMessage(tr("%1 joined")
+                                         .arg(QString::fromStdString(msg.username)),
+                                     2000);
+            }
+        } catch (const nlohmann::json::exception&) {}
+    } else if (env.type == server::MessageType::UserLeft) {
+        try {
+            auto msg = nlohmann::json::parse(payload.constData(),
+                                             payload.constData() + payload.size())
+                           .get<server::UserLeftMsg>();
+            if (msg.docId == doc_id_) {
+                online_user_ids_.erase(msg.userId);
+                status_->setOnlineCount(static_cast<int>(online_user_ids_.size()));
+                status_->showMessage(tr("%1 left")
+                                         .arg(QString::fromStdString(msg.username)),
+                                     2000);
+            }
+        } catch (const nlohmann::json::exception&) {}
+    }
 }
 
 void EditorWindow::onRevisionChanged(uint32_t revision) {
