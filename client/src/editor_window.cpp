@@ -9,7 +9,6 @@
 #include "client/status_bar_widget.h"
 #include "client/user_panel_widget.h"
 
-#include <QAction>
 #include <QCloseEvent>
 #include <QDockWidget>
 #include <QInputDialog>
@@ -18,7 +17,6 @@
 #include <QMetaObject>
 #include <QTextCursor>
 #include <QTimer>
-#include <QToolBar>
 
 #include <nlohmann/json.hpp>
 
@@ -73,12 +71,6 @@ EditorWindow::EditorWindow(NetworkManager* nm,
     dock->setWidget(user_panel_);
     addDockWidget(Qt::RightDockWidgetArea, dock);
 
-    auto* toolbar = addToolBar(tr("Document"));
-    toolbar->setMovable(false);
-    auto* share_action = toolbar->addAction(tr("Share"));
-    share_action->setShortcut(QKeySequence("Ctrl+Shift+S"));
-    connect(share_action, &QAction::triggered, this, &EditorWindow::onShareClicked);
-
     status_ = new StatusBarWidget(this);
     setStatusBar(status_);
     status_->setRevision(initial.revision);
@@ -113,6 +105,8 @@ EditorWindow::EditorWindow(NetworkManager* nm,
 
     connect(remote_cursors_.get(), &RemoteCursorsModel::cursorsChanged,
             this, &EditorWindow::onRemoteCursorsChanged);
+    connect(user_panel_, &UserPanelWidget::shareRequested,
+            this, &EditorWindow::onShareClicked);
 
     onCursorPositionChanged();
     scheduleCursorBroadcast();

@@ -9,6 +9,7 @@
 
 class QListWidget;
 class QLabel;
+class QPushButton;
 
 namespace collab_client {
 
@@ -22,6 +23,9 @@ public:
     void removeUser(uint32_t userId);
     void clearRemoteUsers();
 
+signals:
+    void shareRequested();
+
 private:
     struct Entry {
         QString username;
@@ -33,6 +37,7 @@ private:
 
     QListWidget* list_;
     QLabel* header_;
+    QPushButton* share_btn_;
     std::map<uint32_t, Entry> users_;
     uint32_t local_user_id_ = 0;
 };

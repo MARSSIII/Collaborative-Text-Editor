@@ -5,6 +5,7 @@
 #include <QListWidgetItem>
 #include <QPainter>
 #include <QPixmap>
+#include <QPushButton>
 #include <QVBoxLayout>
 
 namespace collab_client {
@@ -33,9 +34,13 @@ UserPanelWidget::UserPanelWidget(QWidget* parent) : QWidget(parent) {
     header_->setFont(f);
     list_ = new QListWidget;
     list_->setFocusPolicy(Qt::NoFocus);
+    share_btn_ = new QPushButton(tr("Share…"));
+    share_btn_->setToolTip(tr("Grant editor access to another user"));
+    connect(share_btn_, &QPushButton::clicked, this, &UserPanelWidget::shareRequested);
     layout->addWidget(header_);
-    layout->addWidget(list_);
-    setMinimumWidth(160);
+    layout->addWidget(list_, /*stretch*/ 1);
+    layout->addWidget(share_btn_);
+    setMinimumWidth(180);
 }
 
 void UserPanelWidget::setLocalUser(uint32_t userId, const QString& username, const QColor& color) {
