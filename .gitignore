@@ -3,6 +3,7 @@ build/
 build-*/
 cmake-build-*/
 docs/
+demo/
 
 # IDE
 .idea/
