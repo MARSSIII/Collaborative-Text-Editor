@@ -9,9 +9,19 @@ add_library(collab_client_lib STATIC
     src/protocol_codec.cpp
     src/connection_dialog.cpp
     src/document_list_window.cpp
+    src/utf8_codec.cpp
+    src/local_document.cpp
+    src/ot_controller.cpp
+    src/editor_widget.cpp
+    src/editor_window.cpp
+    src/status_bar_widget.cpp
     include/client/network_manager.h
     include/client/connection_dialog.h
     include/client/document_list_window.h
+    include/client/ot_controller.h
+    include/client/editor_widget.h
+    include/client/editor_window.h
+    include/client/status_bar_widget.h
 )
 
 set_target_properties(collab_client_lib PROPERTIES
