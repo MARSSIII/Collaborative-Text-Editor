@@ -1,5 +1,6 @@
 #include "server/server_config.h"
 #include "server/async_logger.h"
+#include "server/log_sink.h"
 #include "server/tcp_server.h"
 #include "server/message_handler.h"
 #include "server/document_manager.h"
@@ -14,6 +15,8 @@
 #include <format>
 #include <iostream>
 #include <csignal>
+#include <memory>
+#include <vector>
 
 namespace fs = std::filesystem;
 
@@ -66,13 +69,20 @@ int main(int argc, char* argv[]) {
     fs::create_directories(config.data_dir + "/logs");
 
     // 3. Logger
-    server::AsyncLogger logger(
-        config.data_dir + "/logs/server.log",
+    std::vector<std::unique_ptr<server::ILogSink>> sinks;
+    sinks.push_back(std::make_unique<server::FileSink>(
+        config.data_dir + "/logs/server.log"));
+    if (config.log_console) {
+        sinks.push_back(std::make_unique<server::ConsoleSink>());
+    }
+
+    const auto level =
         config.log_level == "debug" ? server::LogLevel::Debug :
         config.log_level == "warn"  ? server::LogLevel::Warn :
         config.log_level == "error" ? server::LogLevel::Error :
-                                      server::LogLevel::Info,
-        config.log_console);
+                                      server::LogLevel::Info;
+
+    server::AsyncLogger logger(std::move(sinks), level);
 
     logger.info("Starting server...");
     logger.info(std::format("Port: {}, Thread pool: {}, Data dir: {}",

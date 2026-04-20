@@ -4,6 +4,7 @@
 #include "collab/access_control.h"
 #include "collab/thread_pool.h"
 #include "server/async_logger.h"
+#include "server/log_sink.h"
 #include "server/autosave.h"
 #include "server/cursor_aggregator.h"
 #include "server/document_manager.h"
@@ -35,9 +36,11 @@ protected:
         std::filesystem::create_directories(data_dir_ / "snapshots");
         std::filesystem::create_directories(data_dir_ / "logs");
 
+        std::vector<std::unique_ptr<server::ILogSink>> sinks;
+        sinks.push_back(std::make_unique<server::FileSink>(
+            (data_dir_ / "logs" / "server.log").string()));
         logger_ = std::make_unique<server::AsyncLogger>(
-            (data_dir_ / "logs" / "server.log").string(),
-            server::LogLevel::Warn);
+            std::move(sinks), server::LogLevel::Warn);
 
         auth_ = std::make_unique<collab::AuthManager>();
         access_ = std::make_unique<collab::AccessControl>();

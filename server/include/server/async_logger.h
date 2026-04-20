@@ -2,20 +2,22 @@
 
 #include "collab/mpsc_queue.h"
 
-#include <fstream>
+#include <memory>
 #include <string>
 #include <thread>
 #include <utility>
+#include <vector>
 
 namespace server {
 
 enum class LogLevel { Debug, Info, Warn, Error };
 
+class ILogSink;
+
 class AsyncLogger {
 public:
-    explicit AsyncLogger(const std::string& file_path,
-                         LogLevel min_level = LogLevel::Info,
-                         bool console = true);
+    AsyncLogger(std::vector<std::unique_ptr<ILogSink>> sinks,
+                LogLevel min_level = LogLevel::Info);
     ~AsyncLogger();
 
     AsyncLogger(const AsyncLogger&) = delete;
@@ -35,9 +37,8 @@ private:
 
     collab::MPSCQueue<std::pair<LogLevel, std::string>> queue_;
     std::jthread writer_thread_;
-    std::ofstream file_;
+    std::vector<std::unique_ptr<ILogSink>> sinks_;
     LogLevel min_level_;
-    bool console_;
 };
 
 } // namespace server

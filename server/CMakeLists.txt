@@ -1,6 +1,7 @@
 add_library(server_lib STATIC
     src/server_config.cpp
     src/async_logger.cpp
+    src/log_sink.cpp
     src/client_session.cpp
     src/tcp_server.cpp
     src/message_handler.cpp

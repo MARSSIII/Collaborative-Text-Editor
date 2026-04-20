@@ -1,18 +1,16 @@
 #include "server/async_logger.h"
 
+#include "server/log_sink.h"
+
 #include <chrono>
 #include <format>
-#include <iostream>
 
 namespace server {
 
-AsyncLogger::AsyncLogger(const std::string& file_path, LogLevel min_level, bool console)
-    : file_(file_path, std::ios::app)
-    , min_level_(min_level)
-    , console_(console) {
-    if (!file_.is_open()) {
-        std::cerr << "Failed to open log file: " << file_path << "\n";
-    }
+AsyncLogger::AsyncLogger(std::vector<std::unique_ptr<ILogSink>> sinks,
+                         LogLevel min_level)
+    : sinks_(std::move(sinks))
+    , min_level_(min_level) {
     writer_thread_ = std::jthread([this](std::stop_token stop) {
         writer_loop(stop);
     });
@@ -55,39 +53,25 @@ void AsyncLogger::shutdown() {
 }
 
 void AsyncLogger::writer_loop(std::stop_token stop) {
-    auto emit = [this](const std::pair<LogLevel, std::string>& item) {
-        file_ << item.second << "\n";
-        if (!console_) return;
-        auto& out = (item.first >= LogLevel::Warn) ? std::cerr : std::cout;
-        out << item.second << "\n";
+    auto dispatch = [this](const std::pair<LogLevel, std::string>& item) {
+        for (auto& sink : sinks_) sink->write(item.first, item.second);
     };
 
     while (!stop.stop_requested()) {
         bool wrote = false;
         while (auto entry = queue_.try_dequeue()) {
-            emit(*entry);
+            dispatch(*entry);
             wrote = true;
         }
-
         if (wrote) {
-            file_.flush();
-            if (console_) {
-                std::cout.flush();
-                std::cerr.flush();
-            }
+            for (auto& sink : sinks_) sink->flush();
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 
-    while (auto entry = queue_.try_dequeue()) {
-        emit(*entry);
-    }
-    file_.flush();
-    if (console_) {
-        std::cout.flush();
-        std::cerr.flush();
-    }
+    while (auto entry = queue_.try_dequeue()) dispatch(*entry);
+    for (auto& sink : sinks_) sink->flush();
 }
 
 std::string AsyncLogger::level_str(LogLevel level) {
