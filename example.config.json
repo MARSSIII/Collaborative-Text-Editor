@@ -1,0 +1,11 @@
+{
+  "port": 9000,
+  "thread_pool_size": 0,
+  "autosave_interval_sec": 30,
+  "cursor_broadcast_interval_ms": 100,
+  "idle_document_timeout_sec": 300,
+  "snapshot_revision_threshold": 100,
+  "data_dir": "./data",
+  "shutdown_timeout_sec": 10,
+  "log_level": "info"
+}

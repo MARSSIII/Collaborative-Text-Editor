@@ -42,7 +42,6 @@ if(NOT nlohmann_json_FOUND)
 endif()
 
 add_subdirectory(src)
-add_subdirectory(tests)
 add_subdirectory(demo)
 
 if(Boost_FOUND AND nlohmann_json_FOUND)
@@ -51,3 +50,5 @@ if(Boost_FOUND AND nlohmann_json_FOUND)
 else()
     message(STATUS "Server target SKIPPED (install Boost and nlohmann_json via vcpkg)")
 endif()
+
+add_subdirectory(tests)

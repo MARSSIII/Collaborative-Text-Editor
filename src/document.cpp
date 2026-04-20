@@ -15,6 +15,7 @@ OTResult Document::apply_with_ot(Operation op) {
 
     for (uint32_t i = op.revision; i < revision_; ++i) {
         uint32_t history_index = i - oldest_revision_;
+
         if (history_index < history_.size()) {
             op = transform(op, history_[history_index]).first;
         }
@@ -25,6 +26,7 @@ OTResult Document::apply_with_ot(Operation op) {
     history_.push_back(op);
     while (history_.size() > history_limit_) {
         history_.pop_front();
+
         oldest_revision_++;
     }
 
@@ -36,20 +38,24 @@ OTResult Document::apply_with_ot(Operation op) {
 
 size_t Document::process_queue() {
     size_t count = 0;
+
     while (auto op = incoming_queue_.try_dequeue()) {
         apply_with_ot(std::move(*op));
         ++count;
     }
+
     return count;
 }
 
 std::string Document::get_content() const {
     std::shared_lock lock(content_mutex_);
+
     return content_;
 }
 
 uint32_t Document::revision() const {
     std::shared_lock lock(content_mutex_);
+
     return revision_;
 }
 
@@ -76,6 +82,7 @@ void Document::unsubscribe(uint32_t userId) {
 
 int Document::subscriber_count() const {
     std::lock_guard lock(subscribers_mutex_);
+
     return static_cast<int>(subscribers_.size());
 }
 
@@ -89,6 +96,7 @@ void Document::mark_saved() {
 
 size_t Document::history_size() const {
     std::shared_lock lock(content_mutex_);
+
     return history_.size();
 }
 
@@ -99,11 +107,13 @@ void Document::set_history_limit(uint32_t limit) {
 
 uint32_t Document::oldest_revision_in_history() const {
     std::shared_lock lock(content_mutex_);
+
     return oldest_revision_;
 }
 
 bool Document::needs_snapshot() const {
     std::shared_lock lock(content_mutex_);
+
     return snapshot_threshold_ > 0 &&
            revision_ > 0 &&
            revision_ % snapshot_threshold_ == 0 &&

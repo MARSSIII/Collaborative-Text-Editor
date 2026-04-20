@@ -19,3 +19,15 @@ target_link_libraries(business_logic_tests PRIVATE
 
 include(GoogleTest)
 gtest_discover_tests(business_logic_tests)
+
+if(TARGET server_lib)
+    add_executable(server_integration_tests
+        server_integration/test_client.cpp
+        server_integration/test_server_integration.cpp
+    )
+    target_link_libraries(server_integration_tests PRIVATE
+        server_lib
+        GTest::gtest_main
+    )
+    gtest_discover_tests(server_integration_tests)
+endif()

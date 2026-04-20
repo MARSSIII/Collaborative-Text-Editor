@@ -24,6 +24,8 @@ public:
     std::vector<std::shared_ptr<ClientSession>> all_sessions();
     void remove_session(uint64_t session_id);
 
+    uint16_t local_port() const { return acceptor_.local_endpoint().port(); }
+
 private:
     void do_accept();
 

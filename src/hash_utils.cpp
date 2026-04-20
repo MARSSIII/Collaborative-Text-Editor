@@ -12,9 +12,11 @@ std::string generate_salt(size_t length) {
 
     std::string hex;
     hex.reserve(length * 2);
+
     for (uint8_t byte : buf) {
         hex += std::format("{:02x}", byte);
     }
+
     return hex;
 }
 
