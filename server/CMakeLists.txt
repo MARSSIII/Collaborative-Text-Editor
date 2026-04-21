@@ -16,7 +16,7 @@ target_include_directories(server_lib PUBLIC
 )
 
 target_link_libraries(server_lib PUBLIC
-    collab::collab
+    collab::core
     collab::protocol
     Boost::boost
     nlohmann_json::nlohmann_json

@@ -13,7 +13,7 @@ add_executable(business_logic_tests
 )
 
 target_link_libraries(business_logic_tests PRIVATE
-    collab::collab
+    collab::core
     GTest::gtest_main
 )
 

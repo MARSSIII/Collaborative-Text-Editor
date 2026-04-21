@@ -41,11 +41,11 @@ if(NOT nlohmann_json_FOUND)
     find_package(nlohmann_json PATHS /opt/homebrew/lib/cmake /usr/local/lib/cmake QUIET)
 endif()
 
-add_subdirectory(src)
+add_subdirectory(core)
 add_subdirectory(demo)
 
 if(nlohmann_json_FOUND)
-    add_subdirectory(collab_protocol)
+    add_subdirectory(protocol)
     message(STATUS "collab_protocol target enabled")
 endif()
 

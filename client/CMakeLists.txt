@@ -44,7 +44,7 @@ target_include_directories(collab_client_lib PUBLIC
 )
 
 target_link_libraries(collab_client_lib PUBLIC
-    collab::collab
+    collab::core
     collab::protocol
     Qt5::Core
     Qt5::Network

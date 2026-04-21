@@ -7,7 +7,7 @@ add_executable(client_codec_tests
 )
 target_link_libraries(client_codec_tests PRIVATE
     collab_client_lib
-    collab::collab
+    collab::core
     collab::protocol
     Qt5::Core
     Qt5::Gui
@@ -34,7 +34,7 @@ add_executable(client_editor_tests
 set_target_properties(client_editor_tests PROPERTIES AUTOMOC ON)
 target_link_libraries(client_editor_tests PRIVATE
     collab_client_lib
-    collab::collab
+    collab::core
     Qt5::Widgets
     Qt5::Test
 )
@@ -46,7 +46,7 @@ add_executable(client_ot_controller_tests
 set_target_properties(client_ot_controller_tests PROPERTIES AUTOMOC ON)
 target_link_libraries(client_ot_controller_tests PRIVATE
     collab_client_lib
-    collab::collab
+    collab::core
     collab::protocol
     Qt5::Core
     Qt5::Network
