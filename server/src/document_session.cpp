@@ -32,10 +32,13 @@ void DocumentSession::request_stop() {
 std::vector<ConnectedUser> DocumentSession::connected_users() const {
     std::lock_guard lock(connected_users_mutex_);
     std::vector<ConnectedUser> result;
+
     result.reserve(connected_users_.size());
+
     for (auto& [id, user] : connected_users_) {
         result.push_back(user);
     }
+
     return result;
 }
 
@@ -46,10 +49,12 @@ bool DocumentSession::has_subscribers() const {
 void DocumentSession::run(std::stop_token stop) {
     while (!stop.stop_requested()) {
         bool processed = false;
+
         while (auto cmd = command_queue_.try_dequeue()) {
             process_command(*cmd);
             processed = true;
         }
+
         if (!processed) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }

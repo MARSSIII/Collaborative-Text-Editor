@@ -32,6 +32,7 @@ std::string generate_color(uint32_t userId) {
     const int r = static_cast<int>(hue2rgb(hue + 1.0 / 3) * 255);
     const int g = static_cast<int>(hue2rgb(hue) * 255);
     const int b = static_cast<int>(hue2rgb(hue - 1.0 / 3) * 255);
+
     return std::format("#{:02X}{:02X}{:02X}", r, g, b);
 }
 

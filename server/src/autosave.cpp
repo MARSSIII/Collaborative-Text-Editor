@@ -35,9 +35,11 @@ void AutosaveThread::stop() {
 
 void AutosaveThread::force_save_all() {
     auto docs = doc_manager_.all_loaded_documents();
+
     for (auto& doc : docs) {
         save_document(*doc, doc->id());
     }
+
     logger_.info("Force saved all documents");
 }
 
@@ -75,6 +77,7 @@ void AutosaveThread::save_document(collab::Document& doc, uint32_t docId) {
         logger_.error(std::format("Failed to save document {}", docId));
         return;
     }
+
     file << content;
     file.close();
 

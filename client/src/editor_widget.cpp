@@ -86,11 +86,14 @@ void EditorWidget::setRemoteCursors(std::vector<RemoteCursor> cursors) {
     next.reserve(remote_cursors_.size());
     for (const auto& rc : remote_cursors_) {
         auto it = cursor_anim_.find(rc.userId);
+
         if (it == cursor_anim_.end()) {
             CursorAnim a;
             a.display_position = static_cast<double>(rc.position);
+
             if (rc.selectionStart) a.display_sel_start = static_cast<double>(*rc.selectionStart);
             if (rc.selectionEnd) a.display_sel_end = static_cast<double>(*rc.selectionEnd);
+
             next.emplace(rc.userId, a);
         } else {
             next.emplace(rc.userId, it->second);
@@ -117,12 +120,14 @@ void EditorWidget::tickCursorAnimation() {
     for (const auto& rc : remote_cursors_) {
         auto& a = cursor_anim_[rc.userId];
         step(a.display_position, static_cast<double>(rc.position));
+
         if (rc.selectionStart) {
             if (!a.display_sel_start) a.display_sel_start = static_cast<double>(*rc.selectionStart);
             step(*a.display_sel_start, static_cast<double>(*rc.selectionStart));
         } else {
             a.display_sel_start.reset();
         }
+
         if (rc.selectionEnd) {
             if (!a.display_sel_end) a.display_sel_end = static_cast<double>(*rc.selectionEnd);
             step(*a.display_sel_end, static_cast<double>(*rc.selectionEnd));

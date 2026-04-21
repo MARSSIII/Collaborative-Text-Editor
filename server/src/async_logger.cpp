@@ -59,10 +59,12 @@ void AsyncLogger::writer_loop(std::stop_token stop) {
 
     while (!stop.stop_requested()) {
         bool wrote = false;
+
         while (auto entry = queue_.try_dequeue()) {
             dispatch(*entry);
             wrote = true;
         }
+
         if (wrote) {
             for (auto& sink : sinks_) sink->flush();
         }
@@ -71,6 +73,7 @@ void AsyncLogger::writer_loop(std::stop_token stop) {
     }
 
     while (auto entry = queue_.try_dequeue()) dispatch(*entry);
+
     for (auto& sink : sinks_) sink->flush();
 }
 
@@ -81,6 +84,7 @@ std::string AsyncLogger::level_str(LogLevel level) {
         case LogLevel::Warn:  return "WARN";
         case LogLevel::Error: return "ERROR";
     }
+
     return "???";
 }
 

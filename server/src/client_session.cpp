@@ -23,6 +23,7 @@ void ClientSession::send(const std::string& json_payload) {
 
     std::lock_guard lock(write_mutex_);
     write_queue_.push_back(std::move(frame));
+
     if (!writing_) {
         writing_ = true;
         do_write();
@@ -52,6 +53,7 @@ void ClientSession::do_read_header() {
             if (ec) {
                 if (!disconnected_.exchange(true))
                     on_disconnect_(self);
+
                 return;
             }
             auto payload_len = decode_frame_header(header_buf_.data());
@@ -59,6 +61,7 @@ void ClientSession::do_read_header() {
                 close();
                 if (!disconnected_.exchange(true))
                     on_disconnect_(self);
+
                 return;
             }
             do_read_body(*payload_len);
@@ -74,8 +77,10 @@ void ClientSession::do_read_body(uint32_t body_length) {
             if (ec) {
                 if (!disconnected_.exchange(true))
                     on_disconnect_(self);
+
                 return;
             }
+
             std::string payload(body_buf_.begin(), body_buf_.end());
             on_message_(self, payload);
             do_read_header();
@@ -98,6 +103,7 @@ void ClientSession::do_write() {
                     on_disconnect_(self);
                 return;
             }
+
             std::lock_guard lock(write_mutex_);
             write_queue_.pop_front();
             if (!write_queue_.empty()) {

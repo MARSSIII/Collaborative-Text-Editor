@@ -270,6 +270,7 @@ void DocumentListWindow::applyDocList(const server::DocListResponseMsg& msg) {
     for (const auto& entry : msg.documents) {
         auto* item = new QListWidgetItem;
         item->setData(Qt::UserRole, entry.docId);
+
         auto* card = makeDocCard(entry);
         item->setSizeHint(card->sizeHint());
         list_->addItem(item);

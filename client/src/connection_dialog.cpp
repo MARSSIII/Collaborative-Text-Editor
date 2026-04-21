@@ -136,6 +136,7 @@ void ConnectionDialog::startAuth(const QString& action) {
         reportFailure(tr("Host, port, and username are required."));
         return;
     }
+
     pending_action_ = action;
     setInputsEnabled(false);
     status_label_->setText(tr("Connecting to %1:%2…").arg(host()).arg(port()));
@@ -147,17 +148,20 @@ void ConnectionDialog::startAuth(const QString& action) {
 
 void ConnectionDialog::onConnected() {
     if (pending_action_.isEmpty()) return;
+
     status_label_->setText(tr("Authenticating…"));
     nm_->send(encode_auth_request(pending_action_, username(), password_edit_->text()));
 }
 
 void ConnectionDialog::onDisconnected(QString reason) {
     if (pending_action_.isEmpty()) return;
+
     reportFailure(tr("Disconnected: %1").arg(reason));
 }
 
 void ConnectionDialog::onErrorOccurred(QString message) {
     if (pending_action_.isEmpty()) return;
+
     reportFailure(message);
 }
 

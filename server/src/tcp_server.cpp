@@ -21,6 +21,7 @@ void TcpServer::stop() {
 
 void TcpServer::broadcast_all(const std::string& json_payload) {
     std::lock_guard lock(sessions_mutex_);
+
     for (auto& [id, session] : sessions_) {
         session->send(json_payload);
     }
@@ -28,21 +29,26 @@ void TcpServer::broadcast_all(const std::string& json_payload) {
 
 std::shared_ptr<ClientSession> TcpServer::find_session_by_user_id(uint32_t userId) {
     std::lock_guard lock(sessions_mutex_);
+
     for (auto& [id, session] : sessions_) {
         if (session->is_authenticated() && session->user_id() == userId) {
             return session;
         }
     }
+
     return nullptr;
 }
 
 std::vector<std::shared_ptr<ClientSession>> TcpServer::all_sessions() {
     std::lock_guard lock(sessions_mutex_);
     std::vector<std::shared_ptr<ClientSession>> result;
+
     result.reserve(sessions_.size());
+
     for (auto& [id, session] : sessions_) {
         result.push_back(session);
     }
+
     return result;
 }
 
