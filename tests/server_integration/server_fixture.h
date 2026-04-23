@@ -11,11 +11,11 @@
 #include "server/message_handler.h"
 #include "server/tcp_server.h"
 #include "collab_protocol/protocol.h"
+#include "test_client.h"
 
 #include <boost/asio.hpp>
 #include <gtest/gtest.h>
 
-#include <atomic>
 #include <chrono>
 #include <filesystem>
 #include <memory>
@@ -26,6 +26,11 @@ namespace test {
 
 class ServerFixture : public ::testing::Test {
 protected:
+    static constexpr auto CURSOR_AGGREGATION_INTERVAL = std::chrono::milliseconds(50);
+    static constexpr auto AUTOSAVE_INTERVAL_EFFECTIVELY_DISABLED = std::chrono::hours(1);
+    static constexpr uint32_t AUTOSAVE_OPS_THRESHOLD = 100;
+    static constexpr uint32_t THREAD_POOL_SIZE = 4;
+
     void SetUp() override {
         auto test_info = ::testing::UnitTest::GetInstance()->current_test_info();
         data_dir_ = std::filesystem::temp_directory_path() /
@@ -53,7 +58,7 @@ protected:
             boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(
             boost::asio::make_work_guard(*io_ctx_));
 
-        thread_pool_ = std::make_unique<collab::ThreadPool>(4);
+        thread_pool_ = std::make_unique<collab::ThreadPool>(THREAD_POOL_SIZE);
 
         tcp_server_ = std::make_unique<server::TcpServer>(
             *io_ctx_, 0,
@@ -84,20 +89,18 @@ protected:
             *auth_, *access_, *doc_manager_, *tcp_server_, *logger_);
 
         cursor_agg_ = std::make_unique<server::CursorAggregator>(
-            *doc_manager_, std::chrono::milliseconds(50), *logger_);
+            *doc_manager_, CURSOR_AGGREGATION_INTERVAL, *logger_);
 
         autosave_ = std::make_unique<server::AutosaveThread>(
             *doc_manager_, data_dir_.string(),
-            std::chrono::seconds(3600),
-            100, *logger_);
+            AUTOSAVE_INTERVAL_EFFECTIVELY_DISABLED,
+            AUTOSAVE_OPS_THRESHOLD, *logger_);
 
         tcp_server_->start();
         cursor_agg_->start();
         autosave_->start();
 
         io_thread_ = std::thread([this] { io_ctx_->run(); });
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
 
     void TearDown() override {
@@ -126,6 +129,19 @@ protected:
     }
 
     uint16_t port() const { return tcp_server_->local_port(); }
+
+    uint32_t setup_shared_doc_(TestClient& alice, TestClient& bob,
+                               const std::string& title = "Shared") {
+        using namespace std::chrono_literals;
+        alice.register_and_login("alice", "pw");
+        auto doc_id = alice.create_document(title);
+        bob.register_and_login("bob", "pw");
+        alice.share_document(doc_id, "bob", "editor");
+        (void)alice.join_document(doc_id);
+        (void)bob.join_document(doc_id);
+        (void)alice.recv_until_type("user_joined", 2s);
+        return doc_id;
+    }
 
     void shutdown_server_() {
         shutdown_fired_ = true;

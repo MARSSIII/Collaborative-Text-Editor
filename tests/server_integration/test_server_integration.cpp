@@ -4,7 +4,6 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
-#include <thread>
 
 using namespace test;
 using namespace std::chrono_literals;
@@ -95,21 +94,10 @@ TEST_F(ServerFixture, JoinLeaveBroadcast) {
     (void)alice_id;
 }
 
-TEST_F(ServerFixture, ConcurrentOTConvergence) {
+TEST_F(ServerFixture, ConcurrentInsertsAckedAndBroadcast) {
     TestClient alice(port());
-    alice.register_and_login("alice", "pw");
-    auto doc_id = alice.create_document("Race");
-
     TestClient bob(port());
-    bob.register_and_login("bob", "pw");
-    alice.share_document(doc_id, "bob", "editor");
-
-    auto a_join = alice.join_document(doc_id);
-    ASSERT_TRUE(a_join.value("success", false));
-    auto b_join = bob.join_document(doc_id);
-    ASSERT_TRUE(b_join.value("success", false));
-
-    (void)alice.recv_until_type("user_joined", 2s);
+    auto doc_id = setup_shared_doc_(alice, bob, "Race");
 
     alice.send_insert(doc_id, 0, 0, "A");
     bob.send_insert(doc_id, 0, 0, "B");
@@ -123,31 +111,39 @@ TEST_F(ServerFixture, ConcurrentOTConvergence) {
     auto b_broadcast = bob.recv_until_type("operation_broadcast", 2s);
     ASSERT_FALSE(a_broadcast.is_null());
     ASSERT_FALSE(b_broadcast.is_null());
+}
 
-    alice.leave_document(doc_id);
-    bob.leave_document(doc_id);
+TEST_F(ServerFixture, ConcurrentInsertsConvergeForFreshJoin) {
+    uint32_t doc_id;
+    {
+        TestClient alice(port());
+        TestClient bob(port());
+        doc_id = setup_shared_doc_(alice, bob, "Race");
 
-    std::this_thread::sleep_for(50ms);
+        alice.send_insert(doc_id, 0, 0, "A");
+        bob.send_insert(doc_id, 0, 0, "B");
+        ASSERT_FALSE(alice.recv_until_type("operation_ack", 2s).is_null());
+        ASSERT_FALSE(bob.recv_until_type("operation_ack", 2s).is_null());
+    }
 
-    TestClient alice2(port());
-    alice2.login("alice", "pw");
-    auto final_a = alice2.join_document(doc_id);
-    ASSERT_TRUE(final_a.value("success", false));
-    auto content_a = final_a.at("content").get<std::string>();
-    auto revision_a = final_a.at("revision").get<uint32_t>();
+    TestClient observer_a(port());
+    observer_a.login("alice", "pw");
+    auto state_a = observer_a.join_document(doc_id);
+    ASSERT_TRUE(state_a.value("success", false));
 
-    TestClient bob2(port());
-    bob2.login("bob", "pw");
-    auto final_b = bob2.join_document(doc_id);
-    ASSERT_TRUE(final_b.value("success", false));
-    auto content_b = final_b.at("content").get<std::string>();
-    auto revision_b = final_b.at("revision").get<uint32_t>();
+    TestClient observer_b(port());
+    observer_b.login("bob", "pw");
+    auto state_b = observer_b.join_document(doc_id);
+    ASSERT_TRUE(state_b.value("success", false));
 
+    auto content_a = state_a.at("content").get<std::string>();
+    auto content_b = state_b.at("content").get<std::string>();
     EXPECT_EQ(content_a, content_b) << "OT divergence: alice='" << content_a
                                     << "', bob='" << content_b << "'";
-    EXPECT_EQ(revision_a, revision_b);
-    EXPECT_EQ(content_a.size(), 2u) << "Expected both inserts applied";
-    EXPECT_EQ(revision_a, 2u);
+    EXPECT_EQ(state_a.at("revision").get<uint32_t>(),
+              state_b.at("revision").get<uint32_t>());
+    EXPECT_EQ(content_a.size(), 2u);
+    EXPECT_EQ(state_a.at("revision").get<uint32_t>(), 2u);
 }
 
 TEST_F(ServerFixture, ViewerCannotEdit) {

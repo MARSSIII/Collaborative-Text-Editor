@@ -5,6 +5,18 @@
 
 using namespace collab;
 
+enum class Who { Owner, Editor, Viewer, Stranger };
+
+static const char* name_of(Who w) {
+    switch (w) {
+        case Who::Owner:    return "Owner";
+        case Who::Editor:   return "Editor";
+        case Who::Viewer:   return "Viewer";
+        case Who::Stranger: return "Stranger";
+    }
+    return "Unknown";
+}
+
 class AccessControlTest : public ::testing::Test {
 protected:
     AccessControl ac;
@@ -14,6 +26,16 @@ protected:
     uint32_t stranger_id = 4;
     uint32_t doc_id = 100;
 
+    uint32_t user_of(Who w) const {
+        switch (w) {
+            case Who::Owner:    return owner_id;
+            case Who::Editor:   return editor_id;
+            case Who::Viewer:   return viewer_id;
+            case Who::Stranger: return stranger_id;
+        }
+        return 0;
+    }
+
     void SetUp() override {
         ac.grant(doc_id, owner_id,  Role::Owner);
         ac.grant(doc_id, editor_id, Role::Editor);
@@ -21,55 +43,72 @@ protected:
     }
 };
 
-TEST_F(AccessControlTest, OwnerCanEdit) {
-    EXPECT_TRUE(ac.can_edit(doc_id, owner_id));
+struct PermissionCase {
+    Who who;
+    bool can_read;
+    bool can_edit;
+    bool can_share;
+    bool can_delete;
+};
+
+class AccessControlPermMatrix
+    : public AccessControlTest,
+      public ::testing::WithParamInterface<PermissionCase> {};
+
+TEST_P(AccessControlPermMatrix, RolePermissions) {
+    const auto& p = GetParam();
+    const uint32_t uid = user_of(p.who);
+
+    EXPECT_EQ(ac.can_read  (doc_id, uid), p.can_read)   << name_of(p.who) << " read";
+    EXPECT_EQ(ac.can_edit  (doc_id, uid), p.can_edit)   << name_of(p.who) << " edit";
+    EXPECT_EQ(ac.can_share (doc_id, uid), p.can_share)  << name_of(p.who) << " share";
+    EXPECT_EQ(ac.can_delete(doc_id, uid), p.can_delete) << name_of(p.who) << " delete";
 }
 
-TEST_F(AccessControlTest, EditorCanEdit) {
-    EXPECT_TRUE(ac.can_edit(doc_id, editor_id));
+INSTANTIATE_TEST_SUITE_P(
+    PermissionMatrix,
+    AccessControlPermMatrix,
+    ::testing::Values(
+        PermissionCase{Who::Owner,    true,  true,  true,  true},
+        PermissionCase{Who::Editor,   true,  true,  false, false},
+        PermissionCase{Who::Viewer,   true,  false, false, false},
+        PermissionCase{Who::Stranger, false, false, false, false}
+    ),
+    [](const ::testing::TestParamInfo<PermissionCase>& info) {
+        return name_of(info.param.who);
+    });
+
+struct TryRevokeCase {
+    Who requester;
+    Who target;
+    bool expected_success;
+    const char* label;
+};
+
+class AccessControlTryRevoke
+    : public AccessControlTest,
+      public ::testing::WithParamInterface<TryRevokeCase> {};
+
+TEST_P(AccessControlTryRevoke, Attempt) {
+    const auto& p = GetParam();
+    bool result = ac.try_revoke(doc_id, user_of(p.requester), user_of(p.target));
+    EXPECT_EQ(result, p.expected_success);
 }
 
-TEST_F(AccessControlTest, ViewerCannotEdit) {
-    EXPECT_FALSE(ac.can_edit(doc_id, viewer_id));
-}
-
-TEST_F(AccessControlTest, StrangerCannotEdit) {
-    EXPECT_FALSE(ac.can_edit(doc_id, stranger_id));
-}
-
-TEST_F(AccessControlTest, OwnerCanShare) {
-    EXPECT_TRUE(ac.can_share(doc_id, owner_id));
-}
-
-TEST_F(AccessControlTest, EditorCannotShare) {
-    EXPECT_FALSE(ac.can_share(doc_id, editor_id));
-}
-
-TEST_F(AccessControlTest, ViewerCannotShare) {
-    EXPECT_FALSE(ac.can_share(doc_id, viewer_id));
-}
-
-TEST_F(AccessControlTest, OwnerCanDelete) {
-    EXPECT_TRUE(ac.can_delete(doc_id, owner_id));
-}
-
-TEST_F(AccessControlTest, EditorCannotDelete) {
-    EXPECT_FALSE(ac.can_delete(doc_id, editor_id));
-}
-
-TEST_F(AccessControlTest, ViewerCannotDelete) {
-    EXPECT_FALSE(ac.can_delete(doc_id, viewer_id));
-}
-
-TEST_F(AccessControlTest, AllRolesCanRead) {
-    EXPECT_TRUE(ac.can_read(doc_id, owner_id));
-    EXPECT_TRUE(ac.can_read(doc_id, editor_id));
-    EXPECT_TRUE(ac.can_read(doc_id, viewer_id));
-}
-
-TEST_F(AccessControlTest, StrangerCannotRead) {
-    EXPECT_FALSE(ac.can_read(doc_id, stranger_id));
-}
+INSTANTIATE_TEST_SUITE_P(
+    RevokePolicy,
+    AccessControlTryRevoke,
+    ::testing::Values(
+        TryRevokeCase{Who::Owner,    Who::Owner,    false, "OwnerCannotRevokeSelf"},
+        TryRevokeCase{Who::Owner,    Who::Editor,   true,  "OwnerCanRevokeEditor"},
+        TryRevokeCase{Who::Owner,    Who::Stranger, false, "OwnerCannotRevokeNonMember"},
+        TryRevokeCase{Who::Editor,   Who::Viewer,   false, "EditorCannotRevoke"},
+        TryRevokeCase{Who::Viewer,   Who::Editor,   false, "ViewerCannotRevoke"},
+        TryRevokeCase{Who::Stranger, Who::Editor,   false, "StrangerCannotRevoke"}
+    ),
+    [](const ::testing::TestParamInfo<TryRevokeCase>& info) {
+        return info.param.label;
+    });
 
 TEST_F(AccessControlTest, RevokeAccess) {
     EXPECT_TRUE(ac.can_read(doc_id, editor_id));
@@ -82,36 +121,6 @@ TEST_F(AccessControlTest, ChangeRole) {
     EXPECT_FALSE(ac.can_edit(doc_id, viewer_id));
     ac.grant(doc_id, viewer_id, Role::Editor);
     EXPECT_TRUE(ac.can_edit(doc_id, viewer_id));
-}
-
-TEST_F(AccessControlTest, CannotRevokeOwnerSelf) {
-    bool result = ac.try_revoke(doc_id, owner_id, owner_id);
-    EXPECT_FALSE(result);
-    EXPECT_TRUE(ac.can_read(doc_id, owner_id));
-    EXPECT_TRUE(ac.can_edit(doc_id, owner_id));
-}
-
-TEST_F(AccessControlTest, EditorCannotRevoke) {
-    bool result = ac.try_revoke(doc_id, editor_id, viewer_id);
-    EXPECT_FALSE(result);
-    EXPECT_TRUE(ac.can_read(doc_id, viewer_id));
-}
-
-TEST_F(AccessControlTest, ViewerCannotRevoke) {
-    bool result = ac.try_revoke(doc_id, viewer_id, editor_id);
-    EXPECT_FALSE(result);
-    EXPECT_TRUE(ac.can_edit(doc_id, editor_id));
-}
-
-TEST_F(AccessControlTest, StrangerCannotRevoke) {
-    bool result = ac.try_revoke(doc_id, stranger_id, editor_id);
-    EXPECT_FALSE(result);
-    EXPECT_TRUE(ac.can_edit(doc_id, editor_id));
-}
-
-TEST_F(AccessControlTest, RevokeNonexistentTarget) {
-    bool result = ac.try_revoke(doc_id, owner_id, stranger_id);
-    EXPECT_FALSE(result);
 }
 
 TEST_F(AccessControlTest, ListDocumentsForUser) {

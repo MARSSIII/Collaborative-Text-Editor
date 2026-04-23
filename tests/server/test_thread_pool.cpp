@@ -2,10 +2,10 @@
 #include "collab/thread_pool.h"
 
 #include <atomic>
+#include <latch>
+#include <stdexcept>
 
 using namespace collab;
-#include <chrono>
-#include <thread>
 
 TEST(ThreadPool, ExecutesTasks) {
     std::atomic<int> counter{0};
@@ -25,23 +25,29 @@ TEST(ThreadPool, ExecutesTasks) {
 }
 
 TEST(ThreadPool, ConcurrentExecution) {
+    constexpr int POOL_SIZE = 4;
+    constexpr int NUM_TASKS = 20;
+
     std::atomic<int> active{0};
     std::atomic<int> max_active{0};
+    std::atomic<int> arrivals{0};
+    std::latch first_wave{POOL_SIZE};
 
     {
-        ThreadPool pool(4);
+        ThreadPool pool(POOL_SIZE);
 
-        for (int i = 0; i < 20; ++i) {
+        for (int i = 0; i < NUM_TASKS; ++i) {
             pool.submit([&]() {
                 int current = active.fetch_add(1, std::memory_order_relaxed) + 1;
-
                 int prev_max = max_active.load(std::memory_order_relaxed);
                 while (current > prev_max &&
                        !max_active.compare_exchange_weak(prev_max, current,
                                                          std::memory_order_relaxed)) {
                 }
 
-                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                if (arrivals.fetch_add(1, std::memory_order_relaxed) < POOL_SIZE) {
+                    first_wave.arrive_and_wait();
+                }
 
                 active.fetch_sub(1, std::memory_order_relaxed);
             });
@@ -50,23 +56,26 @@ TEST(ThreadPool, ConcurrentExecution) {
         pool.wait_idle();
     }
 
-    EXPECT_GT(max_active.load(), 1)
-        << "Expected concurrent execution, but max active tasks was "
+    EXPECT_EQ(max_active.load(), POOL_SIZE)
+        << "Expected all " << POOL_SIZE << " pool threads to run concurrently, got "
         << max_active.load();
 }
 
 TEST(ThreadPool, GracefulShutdown) {
     std::atomic<int> completed{0};
+    std::latch release_tasks{1};
 
     {
         ThreadPool pool(2);
 
         for (int i = 0; i < 10; ++i) {
-            pool.submit([&completed]() {
-                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            pool.submit([&]() {
+                release_tasks.wait();
                 completed.fetch_add(1, std::memory_order_relaxed);
             });
         }
+
+        release_tasks.count_down();
     }
 
     EXPECT_EQ(completed.load(), 10)

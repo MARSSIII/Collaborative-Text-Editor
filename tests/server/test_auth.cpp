@@ -1,7 +1,18 @@
 #include <gtest/gtest.h>
 #include "collab/auth_manager.h"
 
+#include <optional>
+#include <string>
+#include <utility>
+
 using namespace collab;
+
+namespace {
+const std::string ALICE = "alice";
+const std::string BOB = "bob";
+const std::string CHARLIE = "charlie";
+const std::string PASSWORD = "password123";
+}
 
 class AuthTest : public ::testing::Test {
 protected:
@@ -9,54 +20,35 @@ protected:
 };
 
 TEST_F(AuthTest, RegisterNewUser) {
-    auto result = auth.register_user("alice", "password123");
+    auto result = auth.register_user(ALICE, PASSWORD);
     EXPECT_TRUE(result.success);
     EXPECT_GT(result.userId, 0u);
     EXPECT_TRUE(result.error.empty());
 }
 
-TEST_F(AuthTest, RegisterDuplicateUsername) {
-    auth.register_user("alice", "password123");
-    auto result = auth.register_user("alice", "other_password");
-    EXPECT_FALSE(result.success);
-    EXPECT_EQ(result.error, "duplicate_username");
-}
-
 TEST_F(AuthTest, LoginCorrectCredentials) {
-    auto reg = auth.register_user("alice", "password123");
-    EXPECT_TRUE(reg.success);
+    auto reg = auth.register_user(ALICE, PASSWORD);
+    ASSERT_TRUE(reg.success);
 
-    auto login = auth.login("alice", "password123");
+    auto login = auth.login(ALICE, PASSWORD);
     EXPECT_TRUE(login.success);
     EXPECT_EQ(login.userId, reg.userId);
 }
 
-TEST_F(AuthTest, LoginWrongPassword) {
-    auth.register_user("alice", "password123");
-    auto result = auth.login("alice", "wrong_password");
-    EXPECT_FALSE(result.success);
-    EXPECT_EQ(result.error, "invalid_credentials");
-}
-
-TEST_F(AuthTest, LoginNonexistentUser) {
-    auto result = auth.login("nobody", "password");
-    EXPECT_FALSE(result.success);
-    EXPECT_EQ(result.error, "invalid_credentials");
-}
-
 TEST_F(AuthTest, PasswordIsHashed) {
-    auth.register_user("alice", "password123");
-    std::string stored_hash = auth.get_stored_hash("alice");
+    auth.register_user(ALICE, PASSWORD);
+    std::string stored_hash = auth.get_stored_hash(ALICE);
     EXPECT_FALSE(stored_hash.empty());
-    EXPECT_NE(stored_hash, "password123");
+    EXPECT_NE(stored_hash, PASSWORD);
 }
 
 TEST_F(AuthTest, SamePasswordDifferentSalt) {
-    auth.register_user("alice", "same_password");
-    auth.register_user("bob", "same_password");
+    const std::string shared_pw = "same_password";
+    auth.register_user(ALICE, shared_pw);
+    auth.register_user(BOB, shared_pw);
 
-    std::string hash_alice = auth.get_stored_hash("alice");
-    std::string hash_bob = auth.get_stored_hash("bob");
+    std::string hash_alice = auth.get_stored_hash(ALICE);
+    std::string hash_bob = auth.get_stored_hash(BOB);
 
     EXPECT_FALSE(hash_alice.empty());
     EXPECT_FALSE(hash_bob.empty());
@@ -64,24 +56,71 @@ TEST_F(AuthTest, SamePasswordDifferentSalt) {
 }
 
 TEST_F(AuthTest, UniqueUserIds) {
-    auto r1 = auth.register_user("alice", "pass1");
-    auto r2 = auth.register_user("bob", "pass2");
-    auto r3 = auth.register_user("charlie", "pass3");
+    auto r1 = auth.register_user(ALICE,   "pass1");
+    auto r2 = auth.register_user(BOB,     "pass2");
+    auto r3 = auth.register_user(CHARLIE, "pass3");
 
-    EXPECT_TRUE(r1.success);
-    EXPECT_TRUE(r2.success);
-    EXPECT_TRUE(r3.success);
+    ASSERT_TRUE(r1.success);
+    ASSERT_TRUE(r2.success);
+    ASSERT_TRUE(r3.success);
 
     EXPECT_LT(r1.userId, r2.userId);
     EXPECT_LT(r2.userId, r3.userId);
 }
 
-TEST_F(AuthTest, RegisterEmptyUsernameAndPassword) {
-    auto r1 = auth.register_user("", "password123");
-    EXPECT_FALSE(r1.success);
-    EXPECT_EQ(r1.error, "empty_username");
+struct FailureCase {
+    std::optional<std::pair<std::string, std::string>> precondition;
+    std::string username;
+    std::string password;
+    std::string expected_error;
+    const char* label;
+};
 
-    auto r2 = auth.register_user("alice", "");
-    EXPECT_FALSE(r2.success);
-    EXPECT_EQ(r2.error, "empty_password");
+class AuthFailureTest : public AuthTest,
+                        public ::testing::WithParamInterface<FailureCase> {};
+
+TEST_P(AuthFailureTest, RegisterRejects) {
+    const auto& p = GetParam();
+    if (p.precondition) {
+        auto pre = auth.register_user(p.precondition->first, p.precondition->second);
+        ASSERT_TRUE(pre.success);
+    }
+
+    auto result = auth.register_user(p.username, p.password);
+    EXPECT_FALSE(result.success);
+    EXPECT_EQ(result.error, p.expected_error);
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    RegisterRejections,
+    AuthFailureTest,
+    ::testing::Values(
+        FailureCase{std::nullopt, "", PASSWORD, "empty_username", "EmptyUsername"},
+        FailureCase{std::nullopt, ALICE, "", "empty_password", "EmptyPassword"},
+        FailureCase{std::make_pair(ALICE, PASSWORD), ALICE, "other", "duplicate_username", "DuplicateUsername"}
+    ),
+    [](const ::testing::TestParamInfo<FailureCase>& info) { return info.param.label; });
+
+class AuthLoginFailureTest : public AuthTest,
+                             public ::testing::WithParamInterface<FailureCase> {};
+
+TEST_P(AuthLoginFailureTest, LoginRejects) {
+    const auto& p = GetParam();
+    if (p.precondition) {
+        auto pre = auth.register_user(p.precondition->first, p.precondition->second);
+        ASSERT_TRUE(pre.success);
+    }
+
+    auto result = auth.login(p.username, p.password);
+    EXPECT_FALSE(result.success);
+    EXPECT_EQ(result.error, p.expected_error);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    LoginRejections,
+    AuthLoginFailureTest,
+    ::testing::Values(
+        FailureCase{std::nullopt, "nobody", "any", "invalid_credentials", "NonexistentUser"},
+        FailureCase{std::make_pair(ALICE, PASSWORD), ALICE, "wrong", "invalid_credentials", "WrongPassword"}
+    ),
+    [](const ::testing::TestParamInfo<FailureCase>& info) { return info.param.label; });

@@ -13,6 +13,4 @@ target_link_libraries(core_tests PRIVATE
     GTest::gtest_main
 )
 
-target_include_directories(core_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)
-
 gtest_discover_tests(core_tests)

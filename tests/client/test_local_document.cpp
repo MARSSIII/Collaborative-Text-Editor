@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <atomic>
+#include <latch>
 #include <thread>
 #include <vector>
 
@@ -37,13 +38,20 @@ TEST(LocalDocument, Reset) {
 }
 
 TEST(LocalDocument, ConcurrentReadersDuringWriter) {
-    LocalDocument doc(std::string(1000, 'A'), 0);
+    constexpr int NUM_READERS = 4;
+    constexpr int NUM_WRITES = 200;
+    constexpr size_t DOC_SIZE = 1000;
+
+    LocalDocument doc(std::string(DOC_SIZE, 'A'), 0);
 
     std::atomic<bool> stop{false};
     std::atomic<size_t> reads{0};
+    std::latch readers_started{NUM_READERS};
+
     std::vector<std::thread> readers;
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < NUM_READERS; ++i) {
         readers.emplace_back([&] {
+            readers_started.count_down();
             while (!stop.load(std::memory_order_relaxed)) {
                 auto snap = doc.snapshot();
                 ASSERT_FALSE(snap.empty());
@@ -54,12 +62,14 @@ TEST(LocalDocument, ConcurrentReadersDuringWriter) {
         });
     }
 
-    for (int i = 0; i < 200; ++i) {
+    readers_started.wait();
+
+    for (int i = 0; i < NUM_WRITES; ++i) {
         const char letter = (i % 2) ? 'B' : 'A';
-        doc.reset(std::string(1000, letter), static_cast<uint32_t>(i));
+        doc.reset(std::string(DOC_SIZE, letter), static_cast<uint32_t>(i));
     }
 
     stop.store(true);
     for (auto& t : readers) t.join();
-    EXPECT_GT(reads.load(), 0u);
+    EXPECT_GE(reads.load(), static_cast<size_t>(NUM_READERS));
 }
