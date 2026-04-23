@@ -1,0 +1,5 @@
+# QSignalSpy in Qt5 connects with DirectConnection, so when the sender
+# lives on a different thread than the spy (moveToThread pattern), the
+# spy's internal QList<QVariant> is written from the worker thread and
+# read from the main thread. This is a Qt5 idiom, not a bug in our code.
+race:QSignalSpy::appendArgs
