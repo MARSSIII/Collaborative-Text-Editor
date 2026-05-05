@@ -21,3 +21,9 @@ demo/
 
 # CMake generated
 CMakeUserPresets.json
+
+# vcpkg manifest install output
+vcpkg_installed/
+
+# Runtime data (documents, logs, snapshots)
+data/
