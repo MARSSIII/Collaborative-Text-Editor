@@ -16,6 +16,10 @@ QMainWindow, QDialog, QWidget {
     color: #1f2328;
 }
 
+QLabel {
+    background: transparent;
+}
+
 QFrame#card {
     background: #ffffff;
     border: 1px solid #e1e4e8;
