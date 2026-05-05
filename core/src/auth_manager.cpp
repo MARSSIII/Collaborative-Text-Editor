@@ -8,6 +8,7 @@ AuthResult AuthManager::register_user(const std::string& username,
     if (username.empty()) {
         return {false, 0, "empty_username"};
     }
+
     if (password.empty()) {
         return {false, 0, "empty_password"};
     }
@@ -50,6 +51,7 @@ std::string AuthManager::get_stored_hash(const std::string& username) const {
     if (it == users_.end()) {
         return "";
     }
+
     return it->second.password_hash;
 }
 
@@ -60,6 +62,7 @@ std::optional<uint32_t> AuthManager::find_user_id(const std::string& username) c
     if (it == users_.end()) {
         return std::nullopt;
     }
+
     return it->second.id;
 }
 

@@ -30,6 +30,7 @@ void TokenBucket::advance_time(std::chrono::milliseconds duration) {
     uint64_t current = tokens_.load(std::memory_order_relaxed);
     while (true) {
         uint64_t new_val = std::min(current + tokens_to_add, capacity_);
+
         if (tokens_.compare_exchange_weak(current, new_val,
                                           std::memory_order_relaxed)) {
             return;

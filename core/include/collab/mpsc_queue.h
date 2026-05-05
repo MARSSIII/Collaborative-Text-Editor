@@ -42,11 +42,15 @@ class MPSCQueue {
 
     std::size_t acquire_slot_() {
         auto& cache = slot_cache_();
+
         for (auto& [q, s] : cache) {
             if (q == this) return s;
         }
+
         std::size_t s = slots_used_.fetch_add(1, std::memory_order_relaxed);
+
         if (s >= MaxProducers) std::abort();
+
         cache.emplace_back(this, s);
         return s;
     }
@@ -57,7 +61,9 @@ class MPSCQueue {
         Node* snapshot[MaxProducers];
         std::size_t n = 0;
         std::size_t used = slots_used_.load(std::memory_order_acquire);
+
         if (used > MaxProducers) used = MaxProducers;
+
         for (std::size_t i = 0; i < used; ++i) {
             Node* p = hazards_[i].hazard.load(std::memory_order_seq_cst);
             if (p) snapshot[n++] = p;
@@ -66,12 +72,15 @@ class MPSCQueue {
         Node* survivors = nullptr;
         std::size_t kept = 0;
         Node* cur = retired_head_;
+
         while (cur) {
             Node* nx = cur->retired_next;
             bool guarded = false;
+
             for (std::size_t i = 0; i < n; ++i) {
                 if (snapshot[i] == cur) { guarded = true; break; }
             }
+
             if (guarded) {
                 cur->retired_next = survivors;
                 survivors = cur;
@@ -79,6 +88,7 @@ class MPSCQueue {
             } else {
                 delete cur;
             }
+
             cur = nx;
         }
         retired_head_ = survivors;
@@ -94,12 +104,15 @@ public:
 
     ~MPSCQueue() {
         while (try_dequeue()) {}
+
         Node* cur = retired_head_;
+
         while (cur) {
             Node* nx = cur->retired_next;
             delete cur;
             cur = nx;
         }
+
         delete head_;
     }
 
@@ -114,9 +127,11 @@ public:
 
         for (;;) {
             Node* t;
+
             for (;;) {
                 t = tail_.load(std::memory_order_acquire);
                 hp.store(t, std::memory_order_seq_cst);
+
                 if (t == tail_.load(std::memory_order_acquire)) break;
             }
 
@@ -149,6 +164,7 @@ public:
     std::optional<T> try_dequeue() {
         Node* h = head_;
         Node* next = h->next.load(std::memory_order_acquire);
+
         if (!next) return std::nullopt;
 
         Node* t = tail_.load(std::memory_order_acquire);
@@ -167,6 +183,7 @@ public:
         ++retired_count_;
 
         if (retired_count_ >= RECLAIM_THRESHOLD) try_reclaim_();
+
         return value;
     }
 };

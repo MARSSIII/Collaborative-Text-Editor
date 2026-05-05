@@ -29,6 +29,7 @@ std::string sha256_hex(const std::string& input) {
     for (unsigned char byte : hash) {
         hex += std::format("{:02x}", byte);
     }
+
     return hex;
 }
 

@@ -6,9 +6,11 @@ bool Operation::is_noop() const noexcept {
     if (type == Type::Insert && text.empty()) {
         return true;
     }
+
     if (type == Type::Delete && length == 0) {
         return true;
     }
+
     return false;
 }
 
@@ -17,6 +19,7 @@ std::string Operation::to_string() const {
         return std::format("Insert(pos={}, text=\"{}\", uid={}, rev={})",
                            position, text, userId, revision);
     }
+
     return std::format("Delete(pos={}, len={}, text=\"{}\", uid={}, rev={})",
                        position, length, text, userId, revision);
 }
