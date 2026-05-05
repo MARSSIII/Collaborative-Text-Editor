@@ -79,7 +79,7 @@ TEST(DocumentLifecycle, HistoryRingBufferOverflow) {
 
     EXPECT_EQ(doc.history_size(), 3u);
     EXPECT_EQ(doc.revision(), 5u);
-    EXPECT_GE(doc.oldest_revision_in_history(), 2u);
+    EXPECT_EQ(doc.oldest_revision_in_history(), 2u);
 }
 
 TEST(DocumentLifecycle, LoadFromDisk) {

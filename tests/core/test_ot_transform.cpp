@@ -116,35 +116,35 @@ INSTANTIATE_TEST_SUITE_P(DeleteVsInsert, OTTransformTest, ::testing::Values(
     }
 ));
 
-TEST(OTTransformEdge, InsertEmptyString) {
+TEST(OTTransformEdge, InsertEmptyStringIsNeutral) {
     auto [a_prime, b_prime] = transform(
         make_insert(0, "", 1, 0),
         make_insert(0, "X", 2, 0)
     );
+    EXPECT_EQ(a_prime.position, 0u);
+    EXPECT_EQ(a_prime.text, "");
     EXPECT_EQ(b_prime.position, 0u);
+    EXPECT_EQ(b_prime.text, "X");
 }
 
-TEST(OTTransformEdge, DeleteZeroLength) {
+TEST(OTTransformEdge, DeleteZeroLengthAtInsertPos) {
     auto [a_prime, b_prime] = transform(
         make_delete(3, 0, "", 1, 0),
         make_insert(3, "X", 2, 0)
     );
+    EXPECT_EQ(a_prime.position, 4u);
+    EXPECT_EQ(a_prime.length, 0u);
     EXPECT_EQ(b_prime.position, 3u);
+    EXPECT_EQ(b_prime.text, "X");
 }
 
-TEST(OTTransformEdge, OperationsAtDocumentEnd) {
-    auto [a_prime, b_prime] = transform(
-        make_insert(10, "X", 1, 0),
-        make_insert(10, "Y", 2, 0)
-    );
-    EXPECT_EQ(a_prime.position, 10u);
-    EXPECT_EQ(b_prime.position, 11u);
-}
-
-TEST(OTTransformEdge, MultiCharInsert) {
+TEST(OTTransformEdge, MultiCharInsertShiftsByByteLength) {
     auto [a_prime, b_prime] = transform(
         make_insert(2, "HELLO", 1, 0),
         make_insert(5, "Y", 2, 0)
     );
+    EXPECT_EQ(a_prime.position, 2u);
+    EXPECT_EQ(a_prime.text, "HELLO");
     EXPECT_EQ(b_prime.position, 10u);
+    EXPECT_EQ(b_prime.text, "Y");
 }

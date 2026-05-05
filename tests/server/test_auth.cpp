@@ -2,6 +2,7 @@
 #include "collab/auth_manager.h"
 
 #include <optional>
+#include <set>
 #include <string>
 #include <utility>
 
@@ -64,8 +65,9 @@ TEST_F(AuthTest, UniqueUserIds) {
     ASSERT_TRUE(r2.success);
     ASSERT_TRUE(r3.success);
 
-    EXPECT_LT(r1.userId, r2.userId);
-    EXPECT_LT(r2.userId, r3.userId);
+    std::set<uint32_t> ids{r1.userId, r2.userId, r3.userId};
+    EXPECT_EQ(ids.size(), 3u);
+    EXPECT_FALSE(ids.contains(0u));
 }
 
 struct FailureCase {

@@ -101,20 +101,43 @@ TEST(ThreadPool, SingleThreadManyTasks) {
     EXPECT_EQ(counter.load(), 200);
 }
 
-TEST(ThreadPool, TaskThrowsException) {
-    std::atomic<int> counter{0};
+TEST(ThreadPool, ExceptionDoesNotKillWorkers) {
+    constexpr int POOL_SIZE = 4;
+
+    std::atomic<int> max_active{0};
+    std::atomic<int> active{0};
+    std::atomic<int> arrivals{0};
+    std::latch wave{POOL_SIZE};
+
     {
-        ThreadPool pool(2);
+        ThreadPool pool(POOL_SIZE);
 
-        pool.submit([]() { throw std::runtime_error("test"); });
+        for (int i = 0; i < POOL_SIZE; ++i) {
+            pool.submit([] { throw std::runtime_error("boom"); });
+        }
+        pool.wait_idle();
 
-        for (int i = 0; i < 10; ++i) {
-            pool.submit([&counter]() {
-                counter.fetch_add(1, std::memory_order_relaxed);
+        for (int i = 0; i < POOL_SIZE * 2; ++i) {
+            pool.submit([&] {
+                int current = active.fetch_add(1, std::memory_order_relaxed) + 1;
+                int prev_max = max_active.load(std::memory_order_relaxed);
+                while (current > prev_max &&
+                       !max_active.compare_exchange_weak(prev_max, current,
+                                                         std::memory_order_relaxed)) {
+                }
+
+                if (arrivals.fetch_add(1, std::memory_order_relaxed) < POOL_SIZE) {
+                    wave.arrive_and_wait();
+                }
+
+                active.fetch_sub(1, std::memory_order_relaxed);
             });
         }
 
         pool.wait_idle();
     }
-    EXPECT_EQ(counter.load(), 10);
+
+    EXPECT_EQ(max_active.load(), POOL_SIZE)
+        << "Pool lost workers after task exceptions: only "
+        << max_active.load() << "/" << POOL_SIZE << " ran concurrently";
 }

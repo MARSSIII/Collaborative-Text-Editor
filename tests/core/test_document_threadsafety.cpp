@@ -14,7 +14,7 @@ TEST(DocumentThreadSafety, ConcurrentReadWrite) {
     constexpr int NUM_OPS = 500;
     constexpr int NUM_READERS = 4;
 
-    std::jthread writer([&doc](std::stop_token) {
+    std::jthread writer([&doc] {
         for (uint32_t i = 0; i < NUM_OPS; ++i) {
             doc.apply_with_ot(make_insert(0, "X", 1, i));
         }
@@ -22,7 +22,7 @@ TEST(DocumentThreadSafety, ConcurrentReadWrite) {
 
     std::vector<std::jthread> readers;
     for (int r = 0; r < NUM_READERS; ++r) {
-        readers.emplace_back([&doc](std::stop_token) {
+        readers.emplace_back([&doc] {
             for (int i = 0; i < NUM_OPS; ++i) {
                 auto content = doc.get_content();
                 auto rev = doc.revision();
@@ -34,10 +34,10 @@ TEST(DocumentThreadSafety, ConcurrentReadWrite) {
         });
     }
 
-    readers.clear();
     writer.join();
+    readers.clear();
 
-    EXPECT_EQ(doc.revision(), NUM_OPS);
+    EXPECT_EQ(doc.revision(), static_cast<uint32_t>(NUM_OPS));
 }
 
 TEST(DocumentThreadSafety, ConcurrentSubscribeUnsubscribe) {
@@ -48,7 +48,7 @@ TEST(DocumentThreadSafety, ConcurrentSubscribeUnsubscribe) {
 
     std::vector<std::jthread> threads;
     for (uint32_t t = 0; t < NUM_THREADS; ++t) {
-        threads.emplace_back([&doc, t](std::stop_token) {
+        threads.emplace_back([&doc, t] {
             uint32_t base = t * OPS_PER_THREAD;
             for (uint32_t i = 0; i < OPS_PER_THREAD; ++i) {
                 doc.subscribe(base + i);
@@ -73,7 +73,7 @@ TEST(DocumentThreadSafety, MultiProducerSingleConsumer) {
 
     std::vector<std::jthread> producers;
     for (uint32_t p = 0; p < NUM_PRODUCERS; ++p) {
-        producers.emplace_back([&doc, p](std::stop_token) {
+        producers.emplace_back([&doc, p] {
             uint32_t userId = p + 1;
             for (uint32_t i = 0; i < OPS_PER_PRODUCER; ++i) {
                 auto op = make_insert(0, "X", userId, 0);

@@ -91,25 +91,43 @@ INSTANTIATE_TEST_SUITE_P(TwoUser, ConvergenceTest, ::testing::Values(
     }
 ));
 
-TEST(ConvergenceThreeUsers, AllConverge) {
-    std::string initial = "ABCDE";
+namespace {
+
+std::string serialize_three(const std::string& initial,
+                            const Operation& first,
+                            const Operation& second,
+                            const Operation& third) {
+    std::string doc = initial;
+    collab::apply(doc, first);
+
+    auto [_a, second_t] = transform(first, second);
+    collab::apply(doc, second_t);
+
+    auto [_b, third_via_first] = transform(first, third);
+    auto [_c, third_t]         = transform(second_t, third_via_first);
+    collab::apply(doc, third_t);
+
+    return doc;
+}
+
+}
+
+TEST(ConvergenceThreeUsers, AllSixServerOrderingsConverge) {
+    const std::string initial = "ABCDE";
     Operation op_a = make_insert(1, "X", 1, 0);
     Operation op_b = make_delete(3, 1, "D", 2, 0);
     Operation op_c = make_insert(5, "Z", 3, 0);
 
-    auto [a1, b1] = transform(op_a, op_b);
-    auto [a2, c1] = transform(op_a, op_c);
-    auto [b2, c2] = transform(b1, c1);
+    std::string r_abc = serialize_three(initial, op_a, op_b, op_c);
+    std::string r_acb = serialize_three(initial, op_a, op_c, op_b);
+    std::string r_bac = serialize_three(initial, op_b, op_a, op_c);
+    std::string r_bca = serialize_three(initial, op_b, op_c, op_a);
+    std::string r_cab = serialize_three(initial, op_c, op_a, op_b);
+    std::string r_cba = serialize_three(initial, op_c, op_b, op_a);
 
-    std::string server = initial;
-    collab::apply(server, op_a);
-    collab::apply(server, b1);
-    collab::apply(server, c2);
-
-    std::string client_a = initial;
-    collab::apply(client_a, op_a);
-    collab::apply(client_a, b1);
-    collab::apply(client_a, c2);
-
-    EXPECT_EQ(server, client_a);
+    EXPECT_EQ(r_abc, r_acb);
+    EXPECT_EQ(r_acb, r_bac);
+    EXPECT_EQ(r_bac, r_bca);
+    EXPECT_EQ(r_bca, r_cab);
+    EXPECT_EQ(r_cab, r_cba);
 }

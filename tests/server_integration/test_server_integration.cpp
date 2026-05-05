@@ -91,7 +91,7 @@ TEST_F(ServerFixture, JoinLeaveBroadcast) {
     ASSERT_FALSE(user_left.is_null());
     EXPECT_EQ(user_left.at("username").get<std::string>(), "bob");
     EXPECT_EQ(user_left.at("userId").get<uint32_t>(), bob_id);
-    (void)alice_id;
+    EXPECT_NE(user_left.at("userId").get<uint32_t>(), alice_id);
 }
 
 TEST_F(ServerFixture, ConcurrentInsertsAckedAndBroadcast) {

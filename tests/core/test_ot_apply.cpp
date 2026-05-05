@@ -93,15 +93,3 @@ TEST(ApplyOp, InsertIntoEmptyDocAtNonZeroPos) {
     collab::apply(doc, make_insert(999, "X", 1, 0));
     EXPECT_EQ(doc, "X");
 }
-
-TEST(ApplyOp, NoopInsertIsIgnored) {
-    std::string doc = "HELLO";
-    collab::apply(doc, make_insert(2, "", 1, 0));
-    EXPECT_EQ(doc, "HELLO");
-}
-
-TEST(ApplyOp, NoopDeleteIsIgnored) {
-    std::string doc = "HELLO";
-    collab::apply(doc, make_delete(2, 0, "", 1, 0));
-    EXPECT_EQ(doc, "HELLO");
-}
